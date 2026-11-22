@@ -4,16 +4,16 @@ import { formatDate } from "@/lib/format";
 import { localize, type Post } from "@/lib/posts";
 import { reveal } from "@/lib/reveal";
 
-const copy = Astro.locals.copy;
-const locale = Astro.locals.locale;
-const text = localize(post, locale);
-
 interface Props {
   post: Post;
   featured?: boolean;
   delay?: number;
 }
+
 const { post, featured = false, delay = 0 } = Astro.props;
+const copy = Astro.locals.copy;
+const locale = Astro.locals.locale;
+const text = localize(post, locale);
 ---
 
 <a
