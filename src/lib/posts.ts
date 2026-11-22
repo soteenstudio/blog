@@ -275,3 +275,8 @@ export async function listPublishedByAuthor(authorId: string, limit = 12): Promi
   });
   return result.rows.map(toPost);
 }
+
+export async function listAllForAdmin(): Promise<Post[]> {
+  const result = await db.execute(`${SELECT_POST} ORDER BY p.updated_at DESC`);
+  return result.rows.map(toPost);
+}
