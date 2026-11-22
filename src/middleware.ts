@@ -1,8 +1,14 @@
 import { defineMiddleware } from "astro:middleware";
 import { DEFAULT_LOCALE, LOCALE_COOKIE, getCopy, isLocale } from "@/data/copy/index";
 import { SESSION_COOKIE, getSessionUser } from "@/lib/auth";
+import { isSameOrigin, isUnsafeMethod } from "@/lib/same-origin";
 
 export const onRequest = defineMiddleware(async (context, next) => {
+  // Tolak permintaan pengubah data yang datang dari situs lain (CSRF).
+  if (isUnsafeMethod(context.request.method) && !isSameOrigin(context.request)) {
+    return new Response("Cross-site requests are forbidden", { status: 403 });
+  }
+
   // Bahasa antarmuka: dari cookie pilihan pengunjung, bawaannya Indonesia.
   const cookieLocale = context.cookies.get(LOCALE_COOKIE)?.value;
   const locale = isLocale(cookieLocale) ? cookieLocale : DEFAULT_LOCALE;
