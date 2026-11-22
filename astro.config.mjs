@@ -1,11 +1,10 @@
 import { defineConfig, envField } from "astro/config";
-import node from "@astrojs/node";
+import vercel from "@astrojs/vercel";
 
 // Blog ini berjalan sebagai SSR (login, like, dan komentar butuh server).
-// Untuk hosting lain (Vercel, Netlify, Cloudflare) cukup ganti adapter di bawah.
 export default defineConfig({
   output: "server",
-  adapter: node({ mode: "standalone" }),
+  adapter: vercel(),
   site: process.env.SITE_URL ?? "http://localhost:4321",
   security: { checkOrigin: true },
   env: {
