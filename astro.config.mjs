@@ -9,8 +9,8 @@ export default defineConfig({
   security: { checkOrigin: true },
   env: {
     schema: {
-      ST_BLOG_DB_ST_BLOG_DB_TURSO_DATABASE_URL: envField.string({ context: "server", access: "secret" }),
-      ST_BLOG_DB_ST_BLOG_DB_TURSO_AUTH_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
+      ST_BLOG_DB_TURSO_DATABASE_URL: envField.string({ context: "server", access: "secret" }),
+      ST_BLOG_DB_TURSO_AUTH_TOKEN: envField.string({ context: "server", access: "secret", optional: true }),
       ADMIN_EMAILS: envField.string({ context: "server", access: "secret", optional: true }),
     },
   },
