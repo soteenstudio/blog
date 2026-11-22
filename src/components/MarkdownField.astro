@@ -1,0 +1,100 @@
+---
+interface Props {
+  id: string;
+  name: string;
+  label: string;
+  value?: string;
+  hint?: string;
+  rows?: number;
+  tabWrite: string;
+  tabPreview: string;
+  emptyText: string;
+  loadingText: string;
+  errorText: string;
+  lang?: string;
+}
+const { id, name, label, value = "", hint, rows = 16, tabWrite, tabPreview, emptyText, loadingText, errorText, lang } = Astro.props;
+---
+
+<div data-md-editor data-empty={emptyText} data-loading={loadingText} data-error={errorText}>
+  <div class="mb-1.5 flex items-end justify-between gap-3">
+    <label for={id} class="label !mb-0">{label}</label>
+    <div role="tablist" class="inline-flex rounded-full border p-0.5 text-xs font-medium">
+      <button
+        type="button"
+        role="tab"
+        data-md-tab="write"
+        aria-selected="true"
+        class="rounded-full px-3 py-1 text-muted-foreground transition-colors aria-selected:bg-primary aria-selected:text-primary-foreground"
+      >
+        {tabWrite}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        data-md-tab="preview"
+        aria-selected="false"
+        class="rounded-full px-3 py-1 text-muted-foreground transition-colors aria-selected:bg-primary aria-selected:text-primary-foreground"
+      >
+        {tabPreview}
+      </button>
+    </div>
+  </div>
+
+  <textarea id={id} name={name} rows={rows} class="field resize-y font-mono leading-relaxed">{value}</textarea>
+  <div
+    data-md-preview
+    hidden
+    lang={lang}
+    class="prose-blog min-h-[12rem] rounded-xl border bg-background px-5 py-4 text-base"
+  >
+  </div>
+  {hint && <p class="mt-1.5 text-xs text-muted-foreground">{hint}</p>}
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>("[data-md-editor]").forEach((editor) => {
+    const textarea = editor.querySelector<HTMLTextAreaElement>("textarea")!;
+    const preview = editor.querySelector<HTMLElement>("[data-md-preview]")!;
+    const tabs = editor.querySelectorAll<HTMLButtonElement>("[data-md-tab]");
+    let lastRendered: string | null = null;
+    let requestId = 0;
+
+    async function render() {
+      const text = textarea.value;
+      if (!text.trim()) {
+        preview.textContent = editor.dataset.empty ?? "";
+        lastRendered = null;
+        return;
+      }
+      if (text === lastRendered) return;
+
+      const current = ++requestId;
+      preview.textContent = editor.dataset.loading ?? "";
+      try {
+        const res = await fetch("/api/preview", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ markdown: text }),
+        });
+        if (!res.ok) throw new Error("preview failed");
+        const data = (await res.json()) as { html: string };
+        if (current !== requestId) return; // sudah ada permintaan yang lebih baru
+        preview.innerHTML = data.html; // HTML sudah disanitasi di server
+        lastRendered = text;
+      } catch {
+        if (current === requestId) preview.textContent = editor.dataset.error ?? "";
+      }
+    }
+
+    function show(mode: string) {
+      const isPreview = mode === "preview";
+      textarea.hidden = isPreview;
+      preview.hidden = !isPreview;
+      tabs.forEach((tab) => tab.setAttribute("aria-selected", String(tab.dataset.mdTab === mode)));
+      if (isPreview) void render();
+    }
+
+    tabs.forEach((tab) => tab.addEventListener("click", () => show(tab.dataset.mdTab ?? "write")));
+  });
+</script>

@@ -1,0 +1,219 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Avatar from "@/components/Avatar.astro";
+import Icon from "@/components/Icon.astro";
+import { professionSuggestions } from "@/data/site";
+import { formatDate } from "@/lib/format";
+import { listFollowers, updateProfession } from "@/lib/profile";
+
+const copy = Astro.locals.copy;
+const locale = Astro.locals.locale;
+const user = Astro.locals.user!; // dijamin sudah masuk oleh middleware
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const raw = form.get("profession");
+  const profession = typeof raw === "string" ? raw.trim().replace(/\s+/g, " ") : "";
+
+  if (profession.length > 60) {
+    error = copy.errors.professionTooLong;
+  } else {
+    await updateProfession(user.id, profession || null);
+    return Astro.redirect("/profile?saved=1", 303);
+  }
+}
+
+const saved = Astro.url.searchParams.get("saved") === "1";
+const followers = await listFollowers(user.id);
+---
+
+<BaseLayout title={copy.profile.title}>
+  <section class="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{copy.profile.title}</h1>
+        <p class="mt-3 text-muted-foreground">{copy.profile.description}</p>
+      </div>
+      <a href={`/u/${user.id}`} class="btn btn-outline btn-sm">
+        {copy.profile.viewPublic}
+        <Icon name="arrow-up-right" />
+      </a>
+    </div>
+
+    {
+      saved && (
+        <p
+          role="status"
+          class="mt-8 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+        >
+          {copy.profile.saved}
+        </p>
+      )
+    }
+    {
+      error && (
+        <p
+          role="alert"
+          class="mt-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+        >
+          {error}
+        </p>
+      )
+    }
+
+    <div class="mt-10 space-y-8">
+      <div class="rounded-3xl border p-6 sm:p-8">
+        <h2 class="font-display text-xl font-semibold tracking-tight">{copy.profile.photo}</h2>
+        <div
+          data-avatar-editor
+          data-uploading={copy.profile.uploading}
+          data-error={copy.profile.uploadError}
+          data-remove-confirm={copy.profile.removeConfirm}
+          class="mt-5 flex flex-wrap items-center gap-6"
+        >
+          <Avatar id={user.id} name={user.name} version={user.avatarVersion} class="size-24 text-3xl" tone="primary" />
+          <div>
+            <div class="flex flex-wrap gap-2">
+              <label class="btn btn-default btn-sm cursor-pointer">
+                <span data-avatar-label>{copy.profile.choose}</span>
+                <input data-avatar-input type="file" accept="image/png,image/jpeg,image/webp" class="sr-only" />
+              </label>
+              {
+                user.avatarVersion && (
+                  <button type="button" data-avatar-remove class="btn btn-outline btn-sm">
+                    {copy.profile.remove}
+                  </button>
+                )
+              }
+            </div>
+            <p class="mt-3 text-xs text-muted-foreground">{copy.profile.photoHint}</p>
+            <p data-avatar-error role="alert" class="mt-2 hidden text-sm text-red-600 dark:text-red-400"></p>
+          </div>
+        </div>
+      </div>
+
+      <form method="post" class="rounded-3xl border p-6 sm:p-8">
+        <label for="profession" class="label">{copy.profile.profession}</label>
+        <input
+          id="profession"
+          name="profession"
+          type="text"
+          maxlength="60"
+          list="profession-options"
+          value={user.profession ?? ""}
+          class="field"
+        />
+        <datalist id="profession-options">
+          {professionSuggestions.map((p) => <option value={p} />)}
+        </datalist>
+        <p class="mt-1.5 text-xs text-muted-foreground">{copy.profile.professionHint}</p>
+        <button type="submit" class="btn btn-brand mt-5">{copy.profile.save}</button>
+      </form>
+
+      <div class="rounded-3xl border p-6 sm:p-8">
+        <h2 class="font-display text-xl font-semibold tracking-tight">
+          {copy.profile.followers}
+          <span class="font-normal text-muted-foreground">({followers.length})</span>
+        </h2>
+        {
+          followers.length === 0 ? (
+            <p class="mt-4 text-sm text-muted-foreground">{copy.profile.followersEmpty}</p>
+          ) : (
+            <ul class="mt-4 divide-y">
+              {followers.map((f) => (
+                <li class="py-3 first:pt-0 last:pb-0">
+                  <a href={`/u/${f.id}`} class="group flex items-center gap-3">
+                    <Avatar id={f.id} name={f.name} version={f.avatarVersion} class="size-10 text-sm" />
+                    <span class="min-w-0 flex-1">
+                      <span class="block truncate text-sm font-medium group-hover:underline">{f.name}</span>
+                      <span class="block truncate text-xs text-muted-foreground">
+                        {f.profession ?? copy.people.noProfession}
+                      </span>
+                    </span>
+                    <time datetime={f.followedAt} class="shrink-0 text-xs text-muted-foreground">
+                      {formatDate(f.followedAt, locale)}
+                    </time>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )
+        }
+      </div>
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  const editor = document.querySelector<HTMLElement>("[data-avatar-editor]");
+
+  if (editor) {
+    const input = editor.querySelector<HTMLInputElement>("[data-avatar-input]")!;
+    const label = editor.querySelector<HTMLElement>("[data-avatar-label]")!;
+    const errorEl = editor.querySelector<HTMLElement>("[data-avatar-error]")!;
+    const removeButton = editor.querySelector<HTMLButtonElement>("[data-avatar-remove]");
+    const SIZE = 256;
+
+    const showError = (message: string) => {
+      errorEl.textContent = message;
+      errorEl.classList.remove("hidden");
+    };
+
+    // Pangkas jadi persegi 256x256 di browser, supaya yang dikirim kecil (puluhan KB).
+    async function toSquareDataUrl(file: File): Promise<string> {
+      const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+      const side = Math.min(bitmap.width, bitmap.height);
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = SIZE;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("canvas");
+      ctx.drawImage(bitmap, (bitmap.width - side) / 2, (bitmap.height - side) / 2, side, side, 0, 0, SIZE, SIZE);
+      bitmap.close();
+      const webp = canvas.toDataURL("image/webp", 0.85);
+      return webp.startsWith("data:image/webp") ? webp : canvas.toDataURL("image/jpeg", 0.85);
+    }
+
+    async function readError(res: Response) {
+      try {
+        const data = await res.json();
+        if (typeof data?.error === "string") return data.error;
+      } catch {
+        /* abaikan */
+      }
+      return editor!.dataset.error ?? "Error";
+    }
+
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      errorEl.classList.add("hidden");
+      const original = label.textContent ?? "";
+      label.textContent = editor.dataset.uploading ?? "…";
+      input.disabled = true;
+
+      try {
+        const image = await toSquareDataUrl(file);
+        const res = await fetch("/api/profile/avatar", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ image }),
+        });
+        if (!res.ok) throw new Error(await readError(res));
+        window.location.reload();
+      } catch (err) {
+        showError(err instanceof Error && err.message !== "canvas" ? err.message : (editor.dataset.error ?? "Error"));
+        label.textContent = original;
+        input.disabled = false;
+        input.value = "";
+      }
+    });
+
+    removeButton?.addEventListener("click", async () => {
+      if (!window.confirm(editor.dataset.removeConfirm ?? "")) return;
+      const res = await fetch("/api/profile/avatar", { method: "DELETE" });
+      if (res.ok) window.location.reload();
+      else showError(await readError(res));
+    });
+  }
+</script>

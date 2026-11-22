@@ -1,0 +1,62 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PostForm from "@/components/PostForm.astro";
+import { canManagePost, deletePost, getPostById, listCategories, updatePost } from "@/lib/posts";
+import type { PostInput } from "@/lib/posts";
+import { parsePostForm } from "@/lib/validation";
+
+const copy = Astro.locals.copy;
+
+const user = Astro.locals.user!;
+const id = Astro.params.id ?? "";
+const post = await getPostById(id);
+
+// Penulis hanya boleh mengelola artikelnya sendiri; admin boleh semuanya.
+if (!post || !canManagePost(user, post)) {
+  Astro.response.status = 404;
+  return Astro.rewrite("/404");
+}
+
+let values: PostInput = {
+  lang: post.lang,
+  altTitle: post.altTitle ?? "",
+  altExcerpt: post.altExcerpt ?? "",
+  altContent: post.altContent ?? "",
+  title: post.title,
+  slug: post.slug,
+  excerpt: post.excerpt,
+  content: post.content,
+  category: post.category,
+  status: post.status,
+};
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+
+  if (form.get("_action") === "delete") {
+    await deletePost(id);
+    return Astro.redirect("/dashboard", 303);
+  }
+
+  const parsed = parsePostForm(form, copy);
+  values = parsed.values;
+  error = parsed.error;
+
+  if (!error) {
+    await updatePost(id, values);
+    return Astro.redirect("/dashboard", 303);
+  }
+}
+
+const categories = (await listCategories()).map((c) => c.name);
+---
+
+<BaseLayout title={copy.dashboard.editPost}>
+  <section class="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
+    <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{copy.dashboard.editPost}</h1>
+    <div class="mt-10">
+      <PostForm values={values} error={error} action={`/dashboard/posts/${id}`} categories={categories} />
+    </div>
+  </section>
+</BaseLayout>

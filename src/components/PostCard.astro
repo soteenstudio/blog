@@ -1,0 +1,72 @@
+---
+import Icon from "./Icon.astro";
+import { formatDate } from "@/lib/format";
+import { localize, type Post } from "@/lib/posts";
+import { reveal } from "@/lib/reveal";
+
+interface Props {
+  post: Post;
+  featured?: boolean;
+  delay?: number;
+}
+
+const { post, featured = false, delay = 0 } = Astro.props;
+const copy = Astro.locals.copy;
+const locale = Astro.locals.locale;
+const text = localize(post, locale);
+---
+
+<a
+  href={`/posts/${post.slug}`}
+  {...reveal(delay)}
+  class:list={[
+    "group relative flex flex-col justify-between overflow-hidden rounded-3xl border bg-background p-7 transition-all duration-300",
+    "hover:-translate-y-1 hover:border-brand/40 hover:shadow-xl hover:shadow-brand/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+    featured && "lg:col-span-2",
+  ]}
+>
+  <div>
+    <div class="mb-8 flex items-start justify-between gap-4">
+      <span class="badge">{post.category}</span>
+      <span class="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Icon name="clock" class="size-3.5" />
+        {copy.list.minutes(text.readingMinutes)}
+      </span>
+    </div>
+    <h3
+      lang={text.shownLang}
+      class:list={[
+        "font-display font-semibold tracking-tight text-balance",
+        featured ? "text-2xl sm:text-3xl" : "text-xl",
+      ]}
+    >
+      {text.title}
+    </h3>
+    {
+      text.excerpt && (
+        <p class:list={["mt-3 leading-relaxed text-muted-foreground", featured && "max-w-2xl"]}>{text.excerpt}</p>
+      )
+    }
+  </div>
+
+  <div class="mt-8 flex items-center justify-between gap-4 text-sm">
+    <div class="flex items-center gap-4 text-muted-foreground">
+      <time datetime={post.publishedAt ?? undefined}>{formatDate(post.publishedAt, locale)}</time>
+      <span class="inline-flex items-center gap-1" title={copy.list.likes}>
+        <Icon name="heart" class="size-3.5" />
+        {post.likeCount}
+      </span>
+      <span class="inline-flex items-center gap-1" title={copy.list.comments}>
+        <Icon name="message" class="size-3.5" />
+        {post.commentCount}
+      </span>
+    </div>
+    <span class="inline-flex items-center gap-1 font-medium">
+      {copy.list.read}
+      <Icon
+        name="arrow-up-right"
+        class="size-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+      />
+    </span>
+  </div>
+</a>

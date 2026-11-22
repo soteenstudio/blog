@@ -1,0 +1,17 @@
+---
+import Icon from "./Icon.astro";
+
+const copy = Astro.locals.copy;
+---
+
+<!-- Kelas `dark` pada <html> dipasang lebih dulu oleh skrip di <head>, jadi ikon cukup mengikuti CSS. -->
+<button
+  type="button"
+  data-theme-toggle
+  aria-label={copy.nav.theme}
+  title={copy.nav.theme}
+  class="inline-flex size-9 items-center justify-center rounded-full border text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+>
+  <Icon name="sun" class="hidden size-4 dark:block" />
+  <Icon name="moon" class="size-4 dark:hidden" />
+</button>

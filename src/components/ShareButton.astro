@@ -1,0 +1,97 @@
+---
+import Icon from "./Icon.astro";
+
+interface Props {
+  url: string;
+  title: string;
+}
+const { url, title } = Astro.props;
+const copy = Astro.locals.copy;
+
+const u = encodeURIComponent(url);
+const t = encodeURIComponent(title);
+const targets = [
+  { label: "WhatsApp", href: `https://wa.me/?text=${t}%20${u}` },
+  { label: "X", href: `https://x.com/intent/post?text=${t}&url=${u}` },
+  { label: "Facebook", href: `https://www.facebook.com/sharer/sharer.php?u=${u}` },
+  { label: "LinkedIn", href: `https://www.linkedin.com/sharing/share-offsite/?url=${u}` },
+  { label: "Telegram", href: `https://t.me/share/url?url=${u}&text=${t}` },
+  { label: copy.share.email, href: `mailto:?subject=${t}&body=${u}` },
+];
+const item =
+  "flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-accent";
+---
+
+<details
+  data-dropdown
+  data-share
+  data-url={url}
+  data-title={title}
+  data-copied={copy.share.copied}
+  class="group relative"
+>
+  <summary
+    title={copy.share.title}
+    class="inline-flex h-10 cursor-pointer list-none items-center gap-2 rounded-full border px-4 text-sm font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring group-open:bg-accent [&::-webkit-details-marker]:hidden"
+  >
+    <Icon name="share" />
+    {copy.share.button}
+  </summary>
+  <div class="absolute left-0 z-30 mt-2 w-56 rounded-2xl border bg-popover p-1.5 text-popover-foreground shadow-lg">
+    <div data-share-native-wrap class="hidden">
+      <button type="button" data-share-native class={item}>
+        {copy.share.native}
+        <Icon name="share" class="size-4" />
+      </button>
+    </div>
+    <button type="button" data-share-copy class={item}>
+      <span data-share-copy-label>{copy.share.copyLink}</span>
+      <Icon name="link" class="size-4" />
+    </button>
+    {
+      targets.map((target) => (
+        <a href={target.href} target="_blank" rel="noopener noreferrer" class={item}>
+          {target.label}
+          <Icon name="arrow-up-right" class="size-4" />
+        </a>
+      ))
+    }
+  </div>
+</details>
+
+<script>
+  const share = document.querySelector<HTMLElement>("[data-share]");
+
+  if (share) {
+    const url = share.dataset.url ?? window.location.href;
+    const title = share.dataset.title ?? document.title;
+
+    const nativeWrap = share.querySelector<HTMLElement>("[data-share-native-wrap]");
+    const nativeButton = share.querySelector<HTMLButtonElement>("[data-share-native]");
+    if (nativeWrap && nativeButton && typeof navigator.share === "function") {
+      nativeWrap.classList.remove("hidden");
+      nativeButton.addEventListener("click", async () => {
+        try {
+          await navigator.share({ title, url });
+        } catch {
+          /* pengguna menutup dialog berbagi */
+        }
+      });
+    }
+
+    const copyButton = share.querySelector<HTMLButtonElement>("[data-share-copy]");
+    const copyLabel = share.querySelector<HTMLElement>("[data-share-copy-label]");
+    if (copyButton && copyLabel) {
+      const original = copyLabel.textContent ?? "";
+      copyButton.addEventListener("click", async () => {
+        try {
+          await navigator.clipboard.writeText(url);
+          copyLabel.textContent = share.dataset.copied ?? original;
+          window.setTimeout(() => (copyLabel.textContent = original), 2000);
+        } catch {
+          window.prompt(original, url); // browser tanpa izin clipboard
+        }
+      });
+    }
+  }
+</script>

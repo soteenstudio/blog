@@ -1,0 +1,68 @@
+---
+import Icon from "./Icon.astro";
+
+const copy = Astro.locals.copy;
+
+interface Props {
+  postId: string;
+  count: number;
+  liked: boolean;
+  loginHref: string | null;
+}
+const { postId, count, liked, loginHref } = Astro.props;
+const base =
+  "inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-medium transition-all duration-200 hover:border-brand/40 hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]";
+---
+
+{
+  loginHref ? (
+    <a href={loginHref} class={base} title={copy.post.likeLoginHint}>
+      <Icon name="heart" />
+      <span>{count}</span>
+    </a>
+  ) : (
+    <button
+      type="button"
+      data-like-button
+      data-post-id={postId}
+      aria-pressed={liked}
+      aria-label={copy.post.like}
+      class:list={[
+        base,
+        "[&[aria-pressed=true]]:border-brand/40 [&[aria-pressed=true]]:text-brand [&[aria-pressed=true]_svg]:fill-current",
+      ]}
+    >
+      <Icon name="heart" />
+      <span data-like-count>{count}</span>
+    </button>
+  )
+}
+
+<script>
+  const button = document.querySelector<HTMLButtonElement>("[data-like-button]");
+
+  if (button) {
+    button.addEventListener("click", async () => {
+      if (button.disabled) return;
+      button.disabled = true;
+      try {
+        const res = await fetch("/api/like", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postId: button.dataset.postId }),
+        });
+        if (res.status === 401) {
+          window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+          return;
+        }
+        if (!res.ok) return;
+        const data = (await res.json()) as { liked: boolean; count: number };
+        button.setAttribute("aria-pressed", String(data.liked));
+        const countEl = button.querySelector("[data-like-count]");
+        if (countEl) countEl.textContent = String(data.count);
+      } finally {
+        button.disabled = false;
+      }
+    });
+  }
+</script>

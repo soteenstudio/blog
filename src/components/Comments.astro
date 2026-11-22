@@ -1,0 +1,267 @@
+---
+import Icon from "./Icon.astro";
+import Avatar from "./Avatar.astro";
+import { siteConfig } from "@/data/site";
+import type { SessionUser } from "@/lib/auth";
+import type { Comment } from "@/lib/comments";
+import { formatDateTime } from "@/lib/format";
+
+const copy = Astro.locals.copy;
+const locale = Astro.locals.locale;
+
+interface Props {
+  postId: string;
+  comments: Comment[];
+  total: number;
+  user: SessionUser | null;
+  loginHref: string;
+}
+const { postId, comments, total, user, loginHref } = Astro.props;
+const canDelete = (c: Comment) => !!user && (user.role === "admin" || user.id === c.userId);
+---
+
+<section
+  id="komentar"
+  aria-labelledby="komentar-title"
+  data-comments
+  data-post-id={postId}
+  data-count={total}
+  data-max={siteConfig.commentMaxLength}
+  data-confirm={copy.comments.deleteConfirm}
+  data-generic-error={copy.comments.genericError}
+  data-sending={copy.comments.sending}
+  data-remaining={copy.comments.remaining("{n}")}
+>
+  <h2 id="komentar-title" class="font-display text-2xl font-semibold tracking-tight">
+    {copy.comments.title}
+    <span data-comment-count class="font-normal text-muted-foreground">({total})</span>
+  </h2>
+
+  {
+    user ? (
+      <form data-comment-form class="mt-6 space-y-3">
+        <label for="comment-body" class="sr-only">
+          {copy.comments.title}
+        </label>
+        <textarea
+          id="comment-body"
+          name="body"
+          rows="4"
+          required
+          maxlength={siteConfig.commentMaxLength}
+          placeholder={copy.comments.placeholder}
+          class="field resize-y"
+        />
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p data-remaining-label class="text-xs text-muted-foreground" aria-live="polite">
+            {copy.comments.remaining(siteConfig.commentMaxLength)}
+          </p>
+          <button type="submit" class="btn btn-brand btn-sm" data-submit-label={copy.comments.submit}>
+            {copy.comments.submit}
+          </button>
+        </div>
+        <p data-form-error role="alert" class="hidden text-sm text-red-600 dark:text-red-400" />
+      </form>
+    ) : (
+      <div class="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-secondary/40 p-5">
+        <p class="text-sm text-muted-foreground">{copy.comments.loginPrompt}</p>
+        <div class="flex gap-2">
+          <a href={loginHref} class="btn btn-default btn-sm">
+            {copy.nav.login}
+          </a>
+          <a href="/register" class="btn btn-outline btn-sm">
+            {copy.nav.register}
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  <p data-empty hidden={comments.length > 0} class="mt-8 text-sm text-muted-foreground">{copy.comments.empty}</p>
+
+  <ul data-comment-list class="mt-8 divide-y">
+    {
+      comments.map((c) => (
+        <li data-comment-id={c.id} class="flex gap-3 py-5 first:pt-0">
+          <a href={`/u/${c.userId}`} class="shrink-0" tabindex="-1" aria-hidden="true">
+            <Avatar id={c.userId} name={c.authorName} version={c.authorAvatarVersion} class="size-9 text-sm" />
+          </a>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center justify-between gap-3">
+              <p class="text-sm">
+                <a href={`/u/${c.userId}`} class="font-medium hover:underline">{c.authorName}</a>
+                <time datetime={c.createdAt} class="ml-2 text-xs text-muted-foreground">
+                  {formatDateTime(c.createdAt, locale)}
+                </time>
+              </p>
+              {canDelete(c) && (
+                <button
+                  type="button"
+                  data-delete-comment
+                  class="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-red-600 dark:hover:text-red-400"
+                >
+                  <Icon name="trash" class="size-3.5" />
+                  {copy.comments.delete}
+                </button>
+              )}
+            </div>
+            <p class="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90">{c.body}</p>
+          </div>
+        </li>
+      ))
+    }
+  </ul>
+
+  <!-- Cetakan untuk komentar baru yang disisipkan tanpa memuat ulang halaman -->
+  <template data-comment-template>
+    <li class="flex gap-3 py-5 first:pt-0">
+      <a data-profile-link class="shrink-0" tabindex="-1" aria-hidden="true">
+        <span
+          data-avatar
+          class="grid size-9 place-items-center rounded-full bg-secondary text-sm font-semibold"></span>
+        <img data-avatar-img hidden alt="" class="size-9 rounded-full bg-secondary object-cover" />
+      </a>
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center justify-between gap-3">
+          <p class="text-sm">
+            <a data-name data-profile-link class="font-medium hover:underline"></a>
+            <time data-time class="ml-2 text-xs text-muted-foreground"></time>
+          </p>
+          <button
+            type="button"
+            data-delete-comment
+            class="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-red-600 dark:hover:text-red-400"
+          >
+            <Icon name="trash" class="size-3.5" />
+            {copy.comments.delete}
+          </button>
+        </div>
+        <p data-body class="mt-1 whitespace-pre-wrap break-words text-sm leading-relaxed text-foreground/90"></p>
+      </div>
+    </li>
+  </template>
+</section>
+
+<script>
+  interface ApiComment {
+    id: string;
+    body: string;
+    createdAt: string;
+    authorName: string;
+    userId: string;
+    authorAvatarVersion: string | null;
+  }
+
+  const root = document.querySelector<HTMLElement>("[data-comments]");
+
+  if (root) {
+    const postId = root.dataset.postId ?? "";
+    const max = Number(root.dataset.max ?? 1000);
+    const list = root.querySelector<HTMLElement>("[data-comment-list]")!;
+    const empty = root.querySelector<HTMLElement>("[data-empty]")!;
+    const countEl = root.querySelector<HTMLElement>("[data-comment-count]")!;
+    const template = root.querySelector<HTMLTemplateElement>("template[data-comment-template]")!;
+    const form = root.querySelector<HTMLFormElement>("[data-comment-form]");
+    const formatter = new Intl.DateTimeFormat(document.documentElement.lang === "en" ? "en-US" : "id-ID", {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "Asia/Makassar",
+    });
+
+    let count = Number(root.dataset.count ?? 0);
+    const syncCount = (next: number) => {
+      count = Math.max(0, next);
+      countEl.textContent = `(${count})`;
+      empty.hidden = list.children.length > 0;
+    };
+
+    async function readError(res: Response): Promise<string> {
+      try {
+        const data = await res.json();
+        if (typeof data?.error === "string") return data.error;
+      } catch {
+        /* abaikan */
+      }
+      return root!.dataset.genericError ?? "Error";
+    }
+
+    function renderComment(c: ApiComment): HTMLElement {
+      const node = (template.content.firstElementChild as HTMLElement).cloneNode(true) as HTMLElement;
+      node.dataset.commentId = c.id;
+      node.querySelector("[data-avatar]")!.textContent = c.authorName.charAt(0).toUpperCase();
+      node.querySelector("[data-name]")!.textContent = c.authorName;
+      node.querySelectorAll<HTMLAnchorElement>("[data-profile-link]").forEach((a) => (a.href = `/u/${c.userId}`));
+      if (c.authorAvatarVersion) {
+        const img = node.querySelector<HTMLImageElement>("[data-avatar-img]")!;
+        img.src = `/avatar/${encodeURIComponent(c.userId)}?v=${encodeURIComponent(c.authorAvatarVersion)}`;
+        img.hidden = false;
+        node.querySelector<HTMLElement>("[data-avatar]")!.hidden = true;
+      }
+      const time = node.querySelector<HTMLTimeElement>("[data-time]")!;
+      time.dateTime = c.createdAt;
+      time.textContent = formatter.format(new Date(c.createdAt));
+      node.querySelector("[data-body]")!.textContent = c.body; // textContent: aman dari XSS
+      return node;
+    }
+
+    if (form) {
+      const textarea = form.querySelector<HTMLTextAreaElement>("textarea")!;
+      const submit = form.querySelector<HTMLButtonElement>("button[type=submit]")!;
+      const errorEl = form.querySelector<HTMLElement>("[data-form-error]")!;
+      const remainingEl = form.querySelector<HTMLElement>("[data-remaining-label]")!;
+      const remainingTemplate = root.dataset.remaining ?? "{n}";
+
+      const updateRemaining = () => {
+        remainingEl.textContent = remainingTemplate.replace("{n}", String(max - textarea.value.length));
+      };
+      textarea.addEventListener("input", updateRemaining);
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const body = textarea.value.trim();
+        if (!body) return;
+
+        errorEl.classList.add("hidden");
+        submit.disabled = true;
+        submit.textContent = root.dataset.sending ?? "…";
+
+        try {
+          const res = await fetch("/api/comments", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ postId, body }),
+          });
+          if (!res.ok) throw new Error(await readError(res));
+          const data = (await res.json()) as { comment: ApiComment };
+          list.prepend(renderComment(data.comment));
+          textarea.value = "";
+          updateRemaining();
+          syncCount(count + 1);
+        } catch (err) {
+          errorEl.textContent = err instanceof Error ? err.message : (root.dataset.genericError ?? "Error");
+          errorEl.classList.remove("hidden");
+        } finally {
+          submit.disabled = false;
+          submit.textContent = submit.dataset.submitLabel ?? "";
+        }
+      });
+    }
+
+    list.addEventListener("click", async (event) => {
+      const button = (event.target as HTMLElement).closest<HTMLElement>("[data-delete-comment]");
+      if (!button) return;
+      const item = button.closest<HTMLElement>("[data-comment-id]");
+      if (!item?.dataset.commentId) return;
+      if (!window.confirm(root.dataset.confirm ?? "")) return;
+
+      try {
+        const res = await fetch(`/api/comments/${encodeURIComponent(item.dataset.commentId)}`, { method: "DELETE" });
+        if (!res.ok) throw new Error(await readError(res));
+        item.remove();
+        syncCount(count - 1);
+      } catch (err) {
+        window.alert(err instanceof Error ? err.message : (root.dataset.genericError ?? "Error"));
+      }
+    });
+  }
+</script>

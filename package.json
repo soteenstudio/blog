@@ -1,0 +1,33 @@
+{
+  "name": "soteen-studio-blog",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20.6" },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "start": "node ./dist/server/entry.mjs",
+    "preview": "astro preview",
+    "check": "astro check",
+    "db:migrate": "node --env-file=.env scripts/migrate.mjs",
+    "db:make-admin": "node --env-file=.env scripts/make-admin.mjs"
+  },
+  "dependencies": {
+    "@astrojs/node": "^9.0.0",
+    "@fontsource-variable/inter": "^5.1.0",
+    "@fontsource-variable/plus-jakarta-sans": "^5.1.0",
+    "@libsql/client": "^0.14.0",
+    "astro": "^5.1.0",
+    "marked": "^15.0.0",
+    "sanitize-html": "^2.14.0"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@types/sanitize-html": "^2.13.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,28 @@
+---
+import { avatarUrl } from "@/lib/avatar";
+
+interface Props {
+  id?: string | null;
+  name: string;
+  version?: string | null;
+  /** Ukuran dan teks inisial, mis. "size-9 text-sm". */
+  class?: string;
+  tone?: "secondary" | "primary";
+}
+const { id, name, version, class: className = "size-9 text-sm", tone = "secondary" } = Astro.props;
+const src = id ? avatarUrl(id, version) : null;
+const toneClass = tone === "primary" ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground";
+---
+
+{
+  src ? (
+    <img src={src} alt="" loading="lazy" decoding="async" class:list={["shrink-0 rounded-full bg-secondary object-cover", className]} />
+  ) : (
+    <span
+      aria-hidden="true"
+      class:list={["grid shrink-0 place-items-center rounded-full font-semibold", toneClass, className]}
+    >
+      {name.trim().charAt(0).toUpperCase()}
+    </span>
+  )
+}

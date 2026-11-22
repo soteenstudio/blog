@@ -1,0 +1,44 @@
+---
+import Icon from "./Icon.astro";
+
+const copy = Astro.locals.copy;
+
+interface Props {
+  page: number;
+  totalPages: number;
+  category?: string | null;
+}
+const { page, totalPages, category } = Astro.props;
+
+function href(p: number) {
+  const params = new URLSearchParams();
+  if (category) params.set("kategori", category);
+  if (p > 1) params.set("halaman", String(p));
+  const query = params.toString();
+  return `/${query ? `?${query}` : ""}`;
+}
+---
+
+{
+  totalPages > 1 && (
+    <nav class="mt-12 flex items-center justify-between gap-4 border-t pt-6" aria-label={copy.list.page(page, totalPages)}>
+      {page > 1 ? (
+        <a href={href(page - 1)} class="btn btn-outline btn-sm">
+          <Icon name="arrow-left" />
+          {copy.list.newer}
+        </a>
+      ) : (
+        <span />
+      )}
+      <p class="text-sm text-muted-foreground">{copy.list.page(page, totalPages)}</p>
+      {page < totalPages ? (
+        <a href={href(page + 1)} class="btn btn-outline btn-sm">
+          {copy.list.older}
+          <Icon name="arrow-right" />
+        </a>
+      ) : (
+        <span />
+      )}
+    </nav>
+  )
+}

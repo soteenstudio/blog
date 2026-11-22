@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 9%;
+    --primary: 222 47% 11%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 220 14% 96%;
+    --muted-foreground: 220 9% 38%;
+    --accent: 220 14% 95%;
+    --accent-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 9%;
+    --border: 220 13% 90%;
+    --input: 220 13% 90%;
+    --ring: 172 66% 36%;
+    --radius: 0.875rem;
+
+    /* Warna brand SoTeen: samakan dengan web utama bila aksen berubah */
+    --brand: 172 66% 38%;
+    --brand-foreground: 0 0% 100%;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
+    --primary: 210 40% 96%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 222 30% 12%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 222 30% 12%;
+    --muted-foreground: 215 18% 68%;
+    --accent: 222 30% 15%;
+    --accent-foreground: 210 40% 96%;
+    --popover: 222 40% 8%;
+    --popover-foreground: 210 40% 96%;
+    --border: 222 25% 18%;
+    --input: 222 25% 18%;
+    --ring: 172 66% 45%;
+
+    --brand: 172 66% 45%;
+    --brand-foreground: 222 47% 8%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+  }
+
+  ::selection {
+    background: hsl(var(--brand) / 0.2);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    * {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer utilities {
+  .bg-dots {
+    background-image: radial-gradient(hsl(var(--foreground) / 0.18) 1px, transparent 1px);
+    background-size: 14px 14px;
+  }
+}
+
+/* Komponen dasar: padanan Button / Badge / Input di web utama (shadcn) */
+@layer components {
+  .btn {
+    @apply inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-full px-5 text-sm font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn svg { @apply size-4 shrink-0; }
+  .btn-sm { @apply h-9 px-4; }
+  .btn-lg { @apply h-12 px-7 text-base; }
+  .btn-icon { @apply size-10 px-0; }
+  .btn-default { @apply bg-primary text-primary-foreground hover:bg-primary/90; }
+  .btn-brand { @apply bg-brand text-brand-foreground hover:bg-brand/90; }
+  .btn-outline { @apply border border-input bg-background hover:bg-accent hover:text-accent-foreground; }
+  .btn-ghost { @apply hover:bg-accent hover:text-accent-foreground; }
+  .btn-danger { @apply border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20; }
+
+  .badge {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-transparent bg-secondary px-2.5 py-0.5 text-xs font-medium text-secondary-foreground transition-colors;
+  }
+  .badge-live { @apply border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300; }
+  .badge-draft { @apply border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300; }
+
+  .field {
+    @apply w-full rounded-xl border border-input bg-background px-4 py-2.5 text-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-brand focus-visible:ring-2 focus-visible:ring-ring/30;
+  }
+  .label { @apply mb-1.5 block text-sm font-medium; }
+}
+
+/* Animasi muncul saat scroll: identik dengan web utama (atribut data-reveal).
+   Class `js` dipasang skrip di <head>, jadi tanpa JavaScript konten tetap terlihat. */
+@keyframes reveal-up { from { opacity: 0; translate: 0 28px; } to { opacity: 1; translate: 0 0; } }
+@keyframes reveal-left { from { opacity: 0; translate: -32px 0; } to { opacity: 1; translate: 0 0; } }
+@keyframes reveal-right { from { opacity: 0; translate: 32px 0; } to { opacity: 1; translate: 0 0; } }
+@keyframes reveal-scale { from { opacity: 0; scale: 0.96; } to { opacity: 1; scale: 1; } }
+@keyframes reveal-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.js [data-reveal] { opacity: 0; }
+.js [data-reveal].is-visible {
+  animation-name: reveal-up;
+  animation-duration: 0.8s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+  animation-delay: var(--reveal-delay, 0ms);
+  animation-fill-mode: both;
+}
+.js [data-reveal="left"].is-visible { animation-name: reveal-left; }
+.js [data-reveal="right"].is-visible { animation-name: reveal-right; }
+.js [data-reveal="scale"].is-visible { animation-name: reveal-scale; }
+.js [data-reveal="fade"].is-visible { animation-name: reveal-fade; }
+
+@media (prefers-reduced-motion: reduce) {
+  .js [data-reveal] { opacity: 1; }
+  .js [data-reveal].is-visible { animation: none; }
+}
+
+/* Tipografi isi artikel (hasil render Markdown) */
+.prose-blog { font-size: 1.0625rem; line-height: 1.85; color: hsl(var(--foreground) / 0.9); }
+.prose-blog > * + * { margin-top: 1.35em; }
+.prose-blog h1, .prose-blog h2, .prose-blog h3, .prose-blog h4 {
+  font-family: "Plus Jakarta Sans Variable", "Inter Variable", sans-serif;
+  font-weight: 600; letter-spacing: -0.02em; line-height: 1.25; color: hsl(var(--foreground));
+}
+.prose-blog h1 { font-size: 2rem; margin-top: 2em; }
+.prose-blog h2 { font-size: 1.6rem; margin-top: 2.1em; }
+.prose-blog h3 { font-size: 1.25rem; margin-top: 1.8em; }
+.prose-blog h2 + *, .prose-blog h3 + * { margin-top: 0.75em; }
+.prose-blog a { color: hsl(var(--brand)); text-decoration: underline; text-underline-offset: 3px; }
+.prose-blog a:hover { text-decoration-thickness: 2px; }
+.prose-blog strong { color: hsl(var(--foreground)); font-weight: 600; }
+.prose-blog ul, .prose-blog ol { padding-left: 1.4em; }
+.prose-blog ul { list-style: disc; }
+.prose-blog ol { list-style: decimal; }
+.prose-blog li + li { margin-top: 0.4em; }
+.prose-blog li::marker { color: hsl(var(--brand)); }
+.prose-blog blockquote {
+  border-left: 3px solid hsl(var(--brand)); padding: 0.1em 0 0.1em 1.1em;
+  color: hsl(var(--muted-foreground)); font-style: italic;
+}
+.prose-blog hr { border: 0; border-top: 1px solid hsl(var(--border)); margin: 2.5em 0; }
+.prose-blog code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.88em;
+  background: hsl(var(--secondary)); border: 1px solid hsl(var(--border));
+  border-radius: 0.4rem; padding: 0.1em 0.35em;
+}
+.prose-blog pre {
+  overflow-x: auto; background: hsl(var(--secondary)); border: 1px solid hsl(var(--border));
+  border-radius: var(--radius); padding: 1.1em 1.25em; line-height: 1.65; font-size: 0.9rem;
+}
+.prose-blog pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+.prose-blog img { border-radius: var(--radius); border: 1px solid hsl(var(--border)); max-width: 100%; height: auto; }
+.prose-blog table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.prose-blog th, .prose-blog td { border-bottom: 1px solid hsl(var(--border)); padding: 0.6em 0.8em; text-align: left; }
+.prose-blog th { font-weight: 600; }

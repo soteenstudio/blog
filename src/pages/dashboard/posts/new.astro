@@ -1,0 +1,47 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PostForm from "@/components/PostForm.astro";
+import { createPost, listCategories } from "@/lib/posts";
+import type { PostInput } from "@/lib/posts";
+import { parsePostForm } from "@/lib/validation";
+
+const copy = Astro.locals.copy;
+
+const user = Astro.locals.user!; // dijamin punya izin menulis oleh middleware
+
+let values: PostInput = {
+  lang: Astro.locals.locale,
+  altTitle: "",
+  altExcerpt: "",
+  altContent: "",
+  title: "",
+  slug: "",
+  excerpt: "",
+  content: "",
+  category: "",
+  status: "draft",
+};
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+  const parsed = parsePostForm(await Astro.request.formData(), copy);
+  values = parsed.values;
+  error = parsed.error;
+
+  if (!error) {
+    await createPost(values, { id: user.id, name: user.name });
+    return Astro.redirect("/dashboard", 303);
+  }
+}
+
+const categories = (await listCategories()).map((c) => c.name);
+---
+
+<BaseLayout title={copy.dashboard.newPost}>
+  <section class="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
+    <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{copy.dashboard.newPost}</h1>
+    <div class="mt-10">
+      <PostForm values={values} error={error} action="/dashboard/posts/new" categories={categories} />
+    </div>
+  </section>
+</BaseLayout>

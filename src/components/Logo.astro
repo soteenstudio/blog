@@ -1,0 +1,22 @@
+---
+import { siteConfig } from "@/data/site";
+
+interface Props {
+  class?: string;
+}
+const { class: className = "" } = Astro.props;
+---
+
+<a
+  href="/"
+  aria-label={`${siteConfig.name} ${siteConfig.blogLabel}`}
+  class:list={["group inline-flex items-center gap-2.5 font-display text-lg font-semibold tracking-tight", className]}
+>
+  <span
+    aria-hidden="true"
+    class="grid size-8 place-items-center rounded-lg bg-primary text-sm font-bold text-primary-foreground transition-transform duration-300 group-hover:-rotate-6"
+  >
+    S
+  </span>
+  <span>SoTeen <span class="font-normal text-muted-foreground">Studio</span></span>
+</a>

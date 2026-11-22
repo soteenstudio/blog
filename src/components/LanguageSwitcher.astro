@@ -1,0 +1,42 @@
+---
+import Icon from "./Icon.astro";
+import { locales } from "@/data/copy/index";
+
+interface Props {
+  /** Path + query halaman saat ini, supaya pengunjung kembali ke tempat yang sama. */
+  pathname: string;
+}
+const { pathname } = Astro.props;
+const copy = Astro.locals.copy;
+const current = Astro.locals.locale;
+const currentShort = locales.find((l) => l.code === current)!.short;
+---
+
+<details data-dropdown class="group relative">
+  <summary
+    aria-label={copy.nav.language}
+    title={copy.nav.language}
+    class="flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-full border px-3 text-sm font-medium text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring group-open:bg-accent [&::-webkit-details-marker]:hidden"
+  >
+    <Icon name="globe" />
+    <span>{currentShort}</span>
+  </summary>
+  <div class="absolute right-0 mt-2 w-48 rounded-2xl border bg-popover p-1.5 text-popover-foreground shadow-lg">
+    {
+      locales.map((l) => (
+        <form method="post" action="/lang">
+          <input type="hidden" name="lang" value={l.code} />
+          <input type="hidden" name="next" value={pathname} />
+          <button
+            type="submit"
+            aria-current={l.code === current ? "true" : undefined}
+            class="flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-sm font-medium transition-colors hover:bg-accent"
+          >
+            {l.label}
+            {l.code === current && <Icon name="check" class="size-4 text-brand" />}
+          </button>
+        </form>
+      ))
+    }
+  </div>
+</details>

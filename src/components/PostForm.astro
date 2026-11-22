@@ -1,0 +1,115 @@
+---
+import MarkdownField from "./MarkdownField.astro";
+import { locales } from "@/data/copy/index";
+import type { PostInput } from "@/lib/posts";
+
+interface Props {
+  values: PostInput;
+  error?: string | null;
+  action: string;
+  categories: string[];
+}
+const { values, error, action, categories } = Astro.props;
+const copy = Astro.locals.copy;
+const f = copy.dashboard.form;
+
+const editor = {
+  tabWrite: f.tabWrite,
+  tabPreview: f.tabPreview,
+  emptyText: f.previewEmpty,
+  loadingText: f.previewLoading,
+  errorText: f.previewError,
+};
+---
+
+<form method="post" action={action} class="space-y-6">
+  {
+    error && (
+      <p
+        role="alert"
+        class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+      >
+        {error}
+      </p>
+    )
+  }
+
+  <div class="grid gap-6 sm:grid-cols-3">
+    <div>
+      <label for="lang" class="label">{f.languageLabel}</label>
+      <select id="lang" name="lang" class="field">
+        {locales.map((l) => <option value={l.code} selected={values.lang === l.code}>{l.label}</option>)}
+      </select>
+    </div>
+    <div>
+      <label for="category" class="label">{f.category}</label>
+      <input
+        id="category"
+        name="category"
+        type="text"
+        required
+        maxlength="40"
+        list="category-options"
+        value={values.category}
+        class="field"
+      />
+      <datalist id="category-options">
+        {categories.map((c) => <option value={c} />)}
+      </datalist>
+    </div>
+    <div>
+      <label for="status" class="label">{f.status}</label>
+      <select id="status" name="status" class="field">
+        <option value="draft" selected={values.status === "draft"}>{copy.dashboard.draft}</option>
+        <option value="published" selected={values.status === "published"}>{copy.dashboard.published}</option>
+      </select>
+    </div>
+  </div>
+
+  <div>
+    <label for="title" class="label">{f.title}</label>
+    <input id="title" name="title" type="text" required maxlength="160" value={values.title} class="field" />
+  </div>
+
+  <div>
+    <label for="slug" class="label">{f.slug}</label>
+    <input
+      id="slug"
+      name="slug"
+      type="text"
+      maxlength="80"
+      pattern="[a-z0-9]+(-[a-z0-9]+)*"
+      value={values.slug}
+      class="field font-mono"
+    />
+    <p class="mt-1.5 text-xs text-muted-foreground">{f.slugHint}</p>
+  </div>
+
+  <div>
+    <label for="excerpt" class="label">{f.excerpt}</label>
+    <textarea id="excerpt" name="excerpt" rows="3" maxlength="240" class="field resize-y">{values.excerpt}</textarea>
+    <p class="mt-1.5 text-xs text-muted-foreground">{f.excerptHint}</p>
+  </div>
+
+  <MarkdownField id="content" name="content" label={f.content} value={values.content} hint={f.contentHint} rows={18} {...editor} />
+
+  <fieldset class="space-y-6 rounded-3xl border p-6">
+    <legend class="px-2 text-sm font-semibold">{f.translationTitle}</legend>
+    <p class="-mt-2 text-sm text-muted-foreground">{f.translationHint}</p>
+
+    <div>
+      <label for="alt_title" class="label">{f.altTitle}</label>
+      <input id="alt_title" name="alt_title" type="text" maxlength="160" value={values.altTitle} class="field" />
+    </div>
+    <div>
+      <label for="alt_excerpt" class="label">{f.altExcerpt}</label>
+      <textarea id="alt_excerpt" name="alt_excerpt" rows="2" maxlength="240" class="field resize-y">{values.altExcerpt}</textarea>
+    </div>
+    <MarkdownField id="alt_content" name="alt_content" label={f.altContent} value={values.altContent} rows={12} {...editor} />
+  </fieldset>
+
+  <div class="flex flex-wrap items-center gap-3">
+    <button type="submit" class="btn btn-brand">{f.save}</button>
+    <a href="/dashboard" class="btn btn-outline">{f.cancel}</a>
+  </div>
+</form>

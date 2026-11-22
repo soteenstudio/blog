@@ -1,0 +1,96 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PostCard from "@/components/PostCard.astro";
+import Pagination from "@/components/Pagination.astro";
+import SectionHeading from "@/components/SectionHeading.astro";
+import { siteConfig } from "@/data/site";
+import { listCategories, listPublished } from "@/lib/posts";
+import { reveal } from "@/lib/reveal";
+
+const copy = Astro.locals.copy;
+
+const user = Astro.locals.user;
+const category = Astro.url.searchParams.get("kategori")?.trim() || null;
+const requestedPage = Math.max(1, parseInt(Astro.url.searchParams.get("halaman") ?? "1", 10) || 1);
+
+const [result, categories] = await Promise.all([
+  listPublished({ category, page: requestedPage, perPage: siteConfig.postsPerPage }),
+  listCategories(),
+]);
+
+if (requestedPage > result.totalPages) {
+  const params = new URLSearchParams();
+  if (category) params.set("kategori", category);
+  if (result.totalPages > 1) params.set("halaman", String(result.totalPages));
+  const query = params.toString();
+  return Astro.redirect(`/${query ? `?${query}` : ""}`);
+}
+
+const { posts, page, totalPages } = result;
+const showFeatured = page === 1 && !category && posts.length > 0;
+
+const chipBase =
+  "rounded-full border px-4 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const chipIdle = "text-muted-foreground hover:bg-accent hover:text-foreground";
+const chipActive = "border-transparent bg-primary text-primary-foreground";
+---
+
+<BaseLayout>
+  <section class="relative overflow-hidden">
+    <div
+      aria-hidden="true"
+      class="bg-dots pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_at_top_right,black,transparent_55%)]"
+    >
+    </div>
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute -right-32 -top-32 -z-10 size-[28rem] rounded-full bg-brand/10 blur-3xl"
+    >
+    </div>
+
+    <div class="mx-auto max-w-7xl px-5 pb-20 pt-16 sm:px-8 sm:pt-24 lg:pb-28">
+      <SectionHeading tag="h1" title={copy.list.title} description={copy.list.description} />
+
+      {
+        categories.length > 0 && (
+          <nav {...reveal(100)} aria-label={copy.list.filterLabel} class="mt-10 flex flex-wrap gap-2">
+            <a href="/" class:list={[chipBase, !category ? chipActive : chipIdle]} aria-current={!category ? "page" : undefined}>
+              {copy.list.all}
+            </a>
+            {categories.map((c) => (
+              <a
+                href={`/?kategori=${encodeURIComponent(c.name)}`}
+                class:list={[chipBase, category === c.name ? chipActive : chipIdle]}
+                aria-current={category === c.name ? "page" : undefined}
+              >
+                {c.name}
+                <span class="ml-1 text-xs opacity-60">{c.count}</span>
+              </a>
+            ))}
+          </nav>
+        )
+      }
+
+      {
+        posts.length === 0 ? (
+          <div class="mt-12 rounded-3xl border border-dashed p-10 text-center">
+            <p class="text-muted-foreground">{category ? copy.list.empty : copy.list.emptyAll}</p>
+            {user?.canPost && !category && (
+              <a href="/dashboard/posts/new" class="btn btn-brand mt-6">
+                {copy.list.emptyCta}
+              </a>
+            )}
+          </div>
+        ) : (
+          <div class="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {posts.map((post, index) => (
+              <PostCard post={post} featured={showFeatured && index === 0} delay={(index % 3) * 90} />
+            ))}
+          </div>
+        )
+      }
+
+      <Pagination page={page} totalPages={totalPages} category={category} />
+    </div>
+  </section>
+</BaseLayout>

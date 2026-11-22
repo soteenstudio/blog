@@ -1,0 +1,107 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { createSession, findUserByEmail, registerUser, safeNextPath } from "@/lib/auth";
+import { clientKey, rateLimit } from "@/lib/rate-limit";
+import { parseRegisterForm } from "@/lib/validation";
+
+const copy = Astro.locals.copy;
+
+const next = safeNextPath(Astro.url.searchParams.get("next"));
+if (Astro.locals.user) return Astro.redirect(next);
+
+let error: string | null = null;
+let name = "";
+let email = "";
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const { values, error: validationError } = parseRegisterForm(form, copy);
+  name = values.name;
+  email = values.email;
+
+  const ip = clientKey(() => Astro.clientAddress);
+  if (!rateLimit(`register:${ip}`, 5, 60 * 60_000)) {
+    error = copy.errors.tooManyRequests;
+  } else if (validationError) {
+    error = validationError;
+  } else if (await findUserByEmail(values.email)) {
+    error = copy.errors.emailTaken;
+  } else {
+    try {
+      const userId = await registerUser(values);
+      await createSession(Astro.cookies, userId);
+      return Astro.redirect(next, 303);
+    } catch (e) {
+      // Balapan dua pendaftaran dengan email sama: batasan UNIQUE di database yang menang.
+      error = String(e).includes("UNIQUE") ? copy.errors.emailTaken : copy.comments.genericError;
+    }
+  }
+}
+
+const loginHref = next === "/" ? "/login" : `/login?next=${encodeURIComponent(next)}`;
+---
+
+<BaseLayout title={copy.auth.registerTitle}>
+  <section class="relative overflow-hidden">
+    <div
+      aria-hidden="true"
+      class="bg-dots pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_at_top_right,black,transparent_65%)]"
+    >
+    </div>
+    <div
+      aria-hidden="true"
+      class="pointer-events-none absolute -right-32 -top-32 -z-10 size-[28rem] rounded-full bg-brand/10 blur-3xl"
+    >
+    </div>
+
+    <div class="mx-auto max-w-md px-5 py-20 sm:py-28">
+      <div class="rounded-3xl border bg-background p-8 shadow-xl shadow-brand/5">
+        <h1 class="font-display text-3xl font-semibold tracking-tight">{copy.auth.registerTitle}</h1>
+        <p class="mt-2 text-muted-foreground">{copy.auth.registerDescription}</p>
+
+        <form method="post" action={`/register?next=${encodeURIComponent(next)}`} class="mt-8 space-y-5">
+          {
+            error && (
+              <p
+                role="alert"
+                class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+              >
+                {error}
+              </p>
+            )
+          }
+          <div>
+            <label for="name" class="label">{copy.auth.name}</label>
+            <input id="name" name="name" type="text" required maxlength="60" autocomplete="name" value={name} class="field" />
+          </div>
+          <div>
+            <label for="email" class="label">{copy.auth.email}</label>
+            <input id="email" name="email" type="email" required autocomplete="email" value={email} class="field" />
+          </div>
+          <div>
+            <label for="password" class="label">{copy.auth.password}</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              minlength="8"
+              maxlength="128"
+              autocomplete="new-password"
+              class="field"
+            />
+            <p class="mt-1.5 text-xs text-muted-foreground">{copy.auth.passwordHint}</p>
+          </div>
+          <button type="submit" class="btn btn-brand w-full">{copy.auth.registerSubmit}</button>
+        </form>
+
+        <p class="mt-6 text-center text-sm text-muted-foreground">
+          {copy.auth.haveAccount}
+          <a href={loginHref} class="font-medium text-foreground underline-offset-4 hover:underline">
+            {copy.nav.login}
+          </a>
+        </p>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

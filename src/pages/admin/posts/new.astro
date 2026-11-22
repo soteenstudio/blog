@@ -1,0 +1,35 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import PostForm from "@/components/PostForm.astro";
+import { copy } from "@/data/copy";
+import { createPost, listCategories } from "@/lib/posts";
+import type { PostInput } from "@/lib/posts";
+import { parsePostForm } from "@/lib/validation";
+
+const admin = Astro.locals.user!; // dijamin admin oleh middleware
+
+let values: PostInput = { title: "", slug: "", excerpt: "", content: "", category: "", status: "draft" };
+let error: string | null = null;
+
+if (Astro.request.method === "POST") {
+  const parsed = parsePostForm(await Astro.request.formData());
+  values = parsed.values;
+  error = parsed.error;
+
+  if (!error) {
+    await createPost(values, { id: admin.id, name: admin.name });
+    return Astro.redirect("/admin", 303);
+  }
+}
+
+const categories = (await listCategories()).map((c) => c.name);
+---
+
+<BaseLayout title={copy.admin.newPost}>
+  <section class="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
+    <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{copy.admin.newPost}</h1>
+    <div class="mt-10">
+      <PostForm values={values} error={error} action="/admin/posts/new" categories={categories} />
+    </div>
+  </section>
+</BaseLayout>
