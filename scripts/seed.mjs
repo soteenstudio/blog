@@ -3,8 +3,8 @@ import { createClient } from "@libsql/client";
 import { seedPosts } from "./seed-posts.mjs";
 
 const db = createClient({
-  url: process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN || undefined,
+  url: process.env.ST_BLOG_DB_TURSO_DATABASE_URL,
+  authToken: process.env.ST_BLOG_DB_TURSO_AUTH_TOKEN || undefined,
 });
 
 let inserted = 0;

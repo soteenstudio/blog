@@ -7,8 +7,8 @@ if (!email) {
 }
 
 const db = createClient({
-  url: process.env.TURSO_DATABASE_URL,
-  authToken: process.env.TURSO_AUTH_TOKEN || undefined,
+  url: process.env.ST_BLOG_DB_TURSO_DATABASE_URL,
+  authToken: process.env.ST_BLOG_DB_TURSO_AUTH_TOKEN || undefined,
 });
 
 const result = await db.execute({ sql: "UPDATE users SET role = 'admin' WHERE email = ?", args: [email] });

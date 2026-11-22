@@ -1,12 +1,12 @@
 import { createClient } from "@libsql/client";
 
-const url = process.env.TURSO_DATABASE_URL;
+const url = process.env.ST_BLOG_DB_TURSO_DATABASE_URL;
 if (!url) {
-  console.error("TURSO_DATABASE_URL belum diatur. Salin .env.example menjadi .env terlebih dulu.");
+  console.error("ST_BLOG_DB_TURSO_DATABASE_URL belum diatur. Salin .env.example menjadi .env terlebih dulu.");
   process.exit(1);
 }
 
-const db = createClient({ url, authToken: process.env.TURSO_AUTH_TOKEN || undefined });
+const db = createClient({ url, authToken: process.env.ST_BLOG_DB_TURSO_AUTH_TOKEN || undefined });
 const NOW = "(strftime('%Y-%m-%dT%H:%M:%fZ','now'))";
 
 const statements = [
