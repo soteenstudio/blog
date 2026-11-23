@@ -1,5 +1,6 @@
 import type { APIRoute } from "astro";
 import { parseAvatarDataUrl } from "@/lib/avatar";
+import { limits } from "@/data/site";
 import { json } from "@/lib/http";
 import { clearAvatar, setAvatar } from "@/lib/profile";
 import { rateLimit } from "@/lib/rate-limit";
@@ -22,6 +23,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 export const DELETE: APIRoute = async ({ locals }) => {
   const user = locals.user;
   if (!user) return json({ error: locals.copy.errors.loginRequired }, 401);
+  if (!rateLimit(`avatar-remove:${user.id}`, limits.avatarRemovePerMinute.max, limits.avatarRemovePerMinute.windowMs)) {
+    return json({ error: locals.copy.errors.tooManyRequests }, 429);
+  }
   await clearAvatar(user.id);
   return json({ ok: true });
 };

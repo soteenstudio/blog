@@ -12,9 +12,10 @@ export const GET: APIRoute = async ({ params, url }) => {
       "Content-Length": String(avatar.data.length),
       "X-Content-Type-Options": "nosniff",
       "Content-Security-Policy": "default-src 'none'",
+      // s-maxage: CDN Vercel ikut menyimpan, jadi foto yang sama tidak memanggil fungsi (dan Turso) lagi.
       "Cache-Control": url.searchParams.has("v")
-        ? "public, max-age=31536000, immutable"
-        : "public, max-age=300",
+        ? "public, max-age=31536000, s-maxage=31536000, immutable"
+        : "public, max-age=300, s-maxage=300",
     },
   });
 };

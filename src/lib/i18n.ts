@@ -6,9 +6,13 @@ const LOCALE_PREFIX = /^\/(id|en)(\/.*)?$/;
  * Rute teknis yang tidak punya awalan bahasa: API, avatar, logout, aset build, dan file statis
  * (yang berekstensi). Alamatnya tetap, bahasanya diambil dari cookie.
  */
-const NEUTRAL = /^\/(api|avatar|_astro|_image|_actions|@|node_modules|src)(\/|$)|^\/logout$|\.[a-z0-9]+$/i;
+const ASSET = /^\/(_astro|_image|@|node_modules|src)(\/|$)|\.[a-z0-9]+$/i;
+const NEUTRAL = /^\/(api|avatar|_actions)(\/|$)|^\/logout$/i;
 
-export const isNeutralPath = (pathname: string) => NEUTRAL.test(pathname);
+/** Aset statis (build, gambar, file berekstensi): tidak perlu sesi dan tidak dibatasi laju. */
+export const isAssetPath = (pathname: string) => ASSET.test(pathname);
+
+export const isNeutralPath = (pathname: string) => isAssetPath(pathname) || NEUTRAL.test(pathname);
 
 /** "/en/posts/x" -> { locale: "en", path: "/posts/x" }; "/posts/x" -> { locale: null, path: "/posts/x" } */
 export function splitLocale(pathname: string): { locale: Locale | null; path: string } {

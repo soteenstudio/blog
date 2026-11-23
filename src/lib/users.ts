@@ -1,5 +1,6 @@
 import { db } from "./db";
 import { isListedAdmin, type Role } from "./auth";
+import { invalidateTag } from "./cache";
 
 export interface UserRecord {
   id: string;
@@ -43,5 +44,6 @@ export async function setCanPost(userId: string, value: boolean): Promise<boolea
     sql: "UPDATE users SET can_post = ? WHERE id = ? AND role != 'admin'",
     args: [value ? 1 : 0, userId],
   });
+  invalidateTag(`user:${userId}`);
   return result.rowsAffected > 0;
 }

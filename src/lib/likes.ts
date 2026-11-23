@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { invalidateTag } from "./cache";
 
 export async function countLikes(postId: string): Promise<number> {
   const result = await db.execute({ sql: "SELECT COUNT(*) AS n FROM likes WHERE post_id = ?", args: [postId] });
@@ -29,5 +30,6 @@ export async function toggleLike(postId: string, userId: string): Promise<{ like
     liked = true;
   }
 
+  invalidateTag(`post:${postId}`);
   return { liked, count: await countLikes(postId) };
 }

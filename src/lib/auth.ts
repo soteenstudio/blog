@@ -1,6 +1,8 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { AstroCookies } from "astro";
 import { ADMIN_EMAILS } from "astro:env/server";
+import { cacheConfig } from "@/data/site";
+import { cached, invalidateKey } from "./cache";
 import { db } from "./db";
 import { hashPassword, verifyPassword } from "./password";
 
@@ -60,7 +62,31 @@ export async function createSession(cookies: AstroCookies, userId: string) {
   });
 }
 
+interface CachedSession {
+  user: SessionUser;
+  expiresAt: number;
+}
+
+/**
+ * Sesi di-cache singkat supaya setiap permintaan tidak perlu query ke database. Logout membuang
+ * cache di instance yang menangani; di instance lain pencabutan sesi berlaku paling lama
+ * `sessionSeconds` kemudian.
+ */
 export async function getSessionUser(token: string): Promise<SessionUser | null> {
+  const session = await cached(
+    `session:${hashToken(token)}`,
+    {
+      ttl: cacheConfig.sessionSeconds,
+      staleIfError: 300,
+      tags: (s: CachedSession | null) => (s ? [`user:${s.user.id}`] : []),
+    },
+    () => loadSession(token),
+  );
+  if (!session || session.expiresAt < Date.now()) return null;
+  return session.user;
+}
+
+async function loadSession(token: string): Promise<CachedSession | null> {
   const result = await db.execute({
     sql: `SELECT u.id, u.name, u.email, u.role, u.can_post, u.profession, u.avatar_version, s.expires_at
           FROM sessions s JOIN users u ON u.id = s.user_id
@@ -79,13 +105,16 @@ export async function getSessionUser(token: string): Promise<SessionUser | null>
   const role: Role = row.role === "admin" || isListedAdmin(email) ? "admin" : "user";
 
   return {
-    id: String(row.id),
-    name: String(row.name),
-    email,
-    role,
-    profession: row.profession ? String(row.profession) : null,
-    avatarVersion: row.avatar_version ? String(row.avatar_version) : null,
-    canPost: role === "admin" || Number(row.can_post) === 1,
+    expiresAt: new Date(String(row.expires_at)).getTime(),
+    user: {
+      id: String(row.id),
+      name: String(row.name),
+      email,
+      role,
+      profession: row.profession ? String(row.profession) : null,
+      avatarVersion: row.avatar_version ? String(row.avatar_version) : null,
+      canPost: role === "admin" || Number(row.can_post) === 1,
+    },
   };
 }
 
@@ -93,6 +122,7 @@ export async function destroySession(cookies: AstroCookies) {
   const token = cookies.get(SESSION_COOKIE)?.value;
   if (token) {
     await db.execute({ sql: "DELETE FROM sessions WHERE id = ?", args: [hashToken(token)] });
+    invalidateKey(`session:${hashToken(token)}`);
   }
   cookies.delete(SESSION_COOKIE, { path: "/" });
 }

@@ -4,6 +4,10 @@ import type { SessionUser } from "./auth";
 import { db } from "./db";
 import { slugify } from "./format";
 import type { Locale } from "@/data/copy/index";
+import { cacheConfig } from "@/data/site";
+import { cached, invalidateTag } from "./cache";
+
+const STALE = { staleIfError: cacheConfig.staleIfErrorSeconds };
 
 export type PostStatus = "draft" | "published";
 
@@ -81,33 +85,43 @@ function toPost(row: Row): Post {
   };
 }
 
+export async function listCategories(): Promise<{ name: string; count: number }[]> {
+  return cached("posts:categories", { ttl: cacheConfig.listSeconds, ...STALE, tags: ["posts"] }, async () => {
+    const result = await db.execute(
+      "SELECT category AS name, COUNT(*) AS n FROM posts WHERE status = 'published' GROUP BY category ORDER BY n DESC, category",
+    );
+    return result.rows.map((r) => ({ name: String(r.name), count: Number(r.n) }));
+  });
+}
+
 export async function listPublished(options: { category?: string | null; page?: number; perPage: number }) {
   const { category, perPage } = options;
   const page = Math.max(1, options.page ?? 1);
-  const where = category ? "WHERE p.status = 'published' AND p.category = ?" : "WHERE p.status = 'published'";
-  const args = category ? [category] : [];
 
-  const totalResult = await db.execute({ sql: `SELECT COUNT(*) AS n FROM posts p ${where}`, args });
-  const total = Number(totalResult.rows[0]?.n ?? 0);
+  // Total dihitung dari daftar kategori (sudah di-cache), jadi tidak perlu COUNT per halaman, dan
+  // kategori/halaman ngawur dijawab tanpa menyentuh database sama sekali.
+  const categories = await listCategories();
+  const total = category
+    ? (categories.find((c) => c.name === category)?.count ?? 0)
+    : categories.reduce((sum, c) => sum + c.count, 0);
+  const totalPages = Math.max(1, Math.ceil(total / perPage));
+  if (total === 0 || page > totalPages) return { posts: [] as Post[], total, page, totalPages };
 
-  const rows = await db.execute({
-    sql: `${SELECT_POST} ${where} ORDER BY p.published_at DESC LIMIT ? OFFSET ?`,
-    args: [...args, perPage, (page - 1) * perPage],
-  });
-
-  return {
-    posts: rows.rows.map(toPost),
-    total,
-    page,
-    totalPages: Math.max(1, Math.ceil(total / perPage)),
-  };
-}
-
-export async function listCategories(): Promise<{ name: string; count: number }[]> {
-  const result = await db.execute(
-    "SELECT category AS name, COUNT(*) AS n FROM posts WHERE status = 'published' GROUP BY category ORDER BY n DESC, category",
+  const posts = await cached(
+    `posts:list:${category ?? "*"}:${page}:${perPage}`,
+    { ttl: cacheConfig.listSeconds, ...STALE, tags: ["posts"] },
+    async () => {
+      const where = category ? "WHERE p.status = 'published' AND p.category = ?" : "WHERE p.status = 'published'";
+      const args = category ? [category] : [];
+      const rows = await db.execute({
+        sql: `${SELECT_POST} ${where} ORDER BY p.published_at DESC LIMIT ? OFFSET ?`,
+        args: [...args, perPage, (page - 1) * perPage],
+      });
+      return rows.rows.map(toPost);
+    },
   );
-  return result.rows.map((r) => ({ name: String(r.name), count: Number(r.n) }));
+
+  return { posts, total, page, totalPages };
 }
 
 /** Admin melihat semua artikel; penulis hanya melihat artikelnya sendiri. */
@@ -126,8 +140,18 @@ export function canManagePost(user: SessionUser, post: Post): boolean {
 }
 
 export async function getPostBySlug(slug: string): Promise<Post | null> {
-  const result = await db.execute({ sql: `${SELECT_POST} WHERE p.slug = ?`, args: [slug] });
-  return result.rows[0] ? toPost(result.rows[0]) : null;
+  return cached(
+    `posts:slug:${slug}`,
+    {
+      ttl: cacheConfig.postSeconds,
+      ...STALE,
+      tags: (post: Post | null) => (post ? ["posts", `post:${post.id}`] : ["posts"]),
+    },
+    async () => {
+      const result = await db.execute({ sql: `${SELECT_POST} WHERE p.slug = ?`, args: [slug] });
+      return result.rows[0] ? toPost(result.rows[0]) : null;
+    },
+  );
 }
 
 export async function getPostById(id: string): Promise<Post | null> {
@@ -136,11 +160,13 @@ export async function getPostById(id: string): Promise<Post | null> {
 }
 
 export async function publishedPostExists(id: string): Promise<boolean> {
-  const result = await db.execute({
-    sql: "SELECT 1 FROM posts WHERE id = ? AND status = 'published'",
-    args: [id],
+  return cached(`posts:exists:${id}`, { ttl: cacheConfig.existsSeconds, tags: ["posts"] }, async () => {
+    const result = await db.execute({
+      sql: "SELECT 1 FROM posts WHERE id = ? AND status = 'published'",
+      args: [id],
+    });
+    return result.rows.length > 0;
   });
-  return result.rows.length > 0;
 }
 
 async function uniqueSlug(base: string, excludeId?: string): Promise<string> {
@@ -186,6 +212,7 @@ export async function createPost(input: PostInput, author: { id: string; name: s
     ],
   });
 
+  invalidateTag("posts");
   return (await getPostById(id))!;
 }
 
@@ -217,6 +244,7 @@ export async function updatePost(id: string, input: PostInput): Promise<Post | n
     ],
   });
 
+  invalidateTag("posts", `post:${id}`);
   return getPostById(id);
 }
 
@@ -229,6 +257,7 @@ export async function deletePost(id: string): Promise<void> {
     ],
     "write",
   );
+  invalidateTag("posts", `post:${id}`, `comments:${id}`);
 }
 
 export interface LocalizedPost {
@@ -269,11 +298,13 @@ export function localize(post: Post, locale: Locale): LocalizedPost {
 }
 
 export async function listPublishedByAuthor(authorId: string, limit = 12): Promise<Post[]> {
-  const result = await db.execute({
-    sql: `${SELECT_POST} WHERE p.status = 'published' AND p.author_id = ? ORDER BY p.published_at DESC LIMIT ?`,
-    args: [authorId, limit],
+  return cached(`posts:author:${authorId}:${limit}`, { ttl: cacheConfig.listSeconds, ...STALE, tags: ["posts"] }, async () => {
+    const result = await db.execute({
+      sql: `${SELECT_POST} WHERE p.status = 'published' AND p.author_id = ? ORDER BY p.published_at DESC LIMIT ?`,
+      args: [authorId, limit],
+    });
+    return result.rows.map(toPost);
   });
-  return result.rows.map(toPost);
 }
 
 export async function listAllForAdmin(): Promise<Post[]> {

@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { invalidateTag } from "./cache";
 
 export async function countFollowers(userId: string): Promise<number> {
   const result = await db.execute({
@@ -39,5 +40,6 @@ export async function toggleFollow(
     });
     following = true;
   }
+  invalidateTag(`user:${followingId}`);
   return { following, followers: await countFollowers(followingId) };
 }

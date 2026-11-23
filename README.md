@@ -77,6 +77,23 @@ navbar (ID/EN) hanyalah tautan ke versi bahasa lain dari halaman yang sama. Teks
 `src/data/copy/id.ts` dan `src/data/copy/en.ts` (kunci harus sama; TypeScript akan memberi tahu bila
 ada yang kurang). Isi artikel tidak diterjemahkan otomatis; penulis mengisi terjemahannya sendiri (lihat di atas).
 
+## Cache dan pembatasan laju
+
+Supaya kuota Turso (rows read/written) awet:
+
+- **Cache data di memori** (`src/lib/cache.ts`, lama simpan di `cacheConfig` dalam `src/data/site.ts`):
+  daftar artikel dan kategori, artikel per slug, komentar, profil, foto profil, dan sesi login. Cache
+  dibuang seketika di instance yang menangani penulisan (buat/ubah/hapus artikel, suka, komentar, ikuti,
+  ubah profil). Instance lain mengikuti TTL, jadi perubahan bisa terlambat sampai satu menit.
+  Bila Turso error atau kuotanya habis, data lama tetap dipakai (hingga `staleIfErrorSeconds`).
+- **Kueri hemat:** jumlah artikel per halaman dihitung dari daftar kategori yang sudah di-cache, dan
+  kategori/halaman yang tidak ada dijawab tanpa menyentuh database.
+- **Foto profil:** di-cache browser dan CDN (`s-maxage`), dan permintaannya tidak lagi mencari sesi.
+- **Batas laju** (`limits` di `src/data/site.ts`): per IP untuk halaman, penulisan, dan foto profil; per
+  akun untuk suka, komentar (per menit dan per jam), hapus komentar, ikuti, foto profil, dan pratinjau.
+  Melewati batas menghasilkan HTTP 429 dengan header `Retry-After`. Penghitungnya di memori tiap instance,
+  jadi batasnya berlaku per instance serverless, bukan total.
+
 ## Struktur
 
 ```
@@ -86,7 +103,7 @@ src/
   styles/global.css   token warna & animasi (sama dengan web utama) + gaya isi artikel
   layouts/            BaseLayout (tema gelap/terang, animasi scroll)
   components/         Navbar, Footer, PostCard, Comments, LikeButton, PostForm, ...
-  lib/                db, auth, posts, comments, likes, markdown, validasi, rate limit
+  lib/                db, cache, auth, posts, comments, likes, markdown, validasi, rate limit
   pages/              /, /posts/[slug], /login, /register, /dashboard/*, /api/*
 scripts/              migrate, make-admin
 ```

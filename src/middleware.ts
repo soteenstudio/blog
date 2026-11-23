@@ -1,7 +1,9 @@
 import { defineMiddleware } from "astro:middleware";
 import { DEFAULT_LOCALE, LOCALE_COOKIE, getCopy, isLocale } from "@/data/copy/index";
 import { SESSION_COOKIE, getSessionUser } from "@/lib/auth";
-import { isNeutralPath, splitLocale, withLocale } from "@/lib/i18n";
+import { limits } from "@/data/site";
+import { isAssetPath, isNeutralPath, splitLocale, withLocale } from "@/lib/i18n";
+import { clientKey, rateLimitStatus } from "@/lib/rate-limit";
 import { isSameOrigin, isUnsafeMethod } from "@/lib/same-origin";
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -49,7 +51,33 @@ export const onRequest = defineMiddleware(async (context, next) => {
     });
   }
 
-  const token = cookies.get(SESSION_COOKIE)?.value;
+  // Pembatas laju per IP: halaman dan permintaan pengubah data dihitung terpisah. Aset statis dilewati.
+  if (!isAssetPath(barePath)) {
+    const ip = clientKey(() => context.clientAddress);
+    const rule = barePath.startsWith("/avatar/")
+      ? { key: `avatar:${ip}`, ...limits.avatarPerIp }
+      : isRead
+        ? { key: `pages:${ip}`, ...limits.pagesPerIp }
+        : { key: `writes:${ip}`, ...limits.writesPerIp };
+    const status = rateLimitStatus(rule.key, rule.max, rule.windowMs);
+    if (!status.ok) {
+      const headers = { "Retry-After": String(status.retryAfter), "Cache-Control": "no-store" };
+      if (barePath.startsWith("/api/")) {
+        return new Response(JSON.stringify({ error: locals.copy.errors.tooManyRequests }), {
+          status: 429,
+          headers: { ...headers, "Content-Type": "application/json; charset=utf-8" },
+        });
+      }
+      return new Response(locals.copy.errors.tooManyRequests, {
+        status: 429,
+        headers: { ...headers, "Content-Type": "text/plain; charset=utf-8" },
+      });
+    }
+  }
+
+  // Foto profil dan aset statis tidak butuh data akun: lewati pencarian sesi.
+  const needsSession = !isAssetPath(barePath) && !barePath.startsWith("/avatar/");
+  const token = needsSession ? cookies.get(SESSION_COOKIE)?.value : undefined;
   const user = token ? await getSessionUser(token) : null;
   locals.user = user;
 

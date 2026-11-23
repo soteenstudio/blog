@@ -1,5 +1,7 @@
 import { db } from "./db";
 import type { ParsedAvatar } from "./avatar";
+import { cacheConfig } from "@/data/site";
+import { cached, invalidateTag } from "./cache";
 
 export interface PublicProfile {
   id: string;
@@ -19,6 +21,14 @@ export interface FollowerSummary {
 }
 
 export async function getPublicProfile(id: string): Promise<PublicProfile | null> {
+  return cached(
+    `profile:${id}`,
+    { ttl: cacheConfig.profileSeconds, staleIfError: cacheConfig.staleIfErrorSeconds, tags: [`user:${id}`] },
+    () => loadPublicProfile(id),
+  );
+}
+
+async function loadPublicProfile(id: string): Promise<PublicProfile | null> {
   const result = await db.execute({
     sql: `SELECT u.id, u.name, u.profession, u.avatar_version, u.created_at,
             (SELECT COUNT(*) FROM follows f WHERE f.following_id = u.id) AS follower_count
@@ -39,6 +49,7 @@ export async function getPublicProfile(id: string): Promise<PublicProfile | null
 
 export async function updateProfession(userId: string, profession: string | null) {
   await db.execute({ sql: "UPDATE users SET profession = ? WHERE id = ?", args: [profession, userId] });
+  invalidateTag(`user:${userId}`, "posts");
 }
 
 export async function setAvatar(userId: string, avatar: ParsedAvatar) {
@@ -46,6 +57,7 @@ export async function setAvatar(userId: string, avatar: ParsedAvatar) {
     sql: "UPDATE users SET avatar_data = ?, avatar_mime = ?, avatar_version = ? WHERE id = ?",
     args: [avatar.base64, avatar.mime, String(Date.now()), userId],
   });
+  invalidateTag(`user:${userId}`, "posts");
 }
 
 export async function clearAvatar(userId: string) {
@@ -53,9 +65,18 @@ export async function clearAvatar(userId: string) {
     sql: "UPDATE users SET avatar_data = NULL, avatar_mime = NULL, avatar_version = NULL WHERE id = ?",
     args: [userId],
   });
+  invalidateTag(`user:${userId}`, "posts");
 }
 
 export async function getAvatar(userId: string): Promise<{ mime: string; data: Buffer } | null> {
+  return cached(
+    `avatar:${userId}`,
+    { ttl: cacheConfig.avatarSeconds, negativeTtl: 60, staleIfError: cacheConfig.staleIfErrorSeconds, tags: [`user:${userId}`] },
+    () => loadAvatar(userId),
+  );
+}
+
+async function loadAvatar(userId: string): Promise<{ mime: string; data: Buffer } | null> {
   const result = await db.execute({
     sql: "SELECT avatar_data, avatar_mime FROM users WHERE id = ? AND avatar_data IS NOT NULL",
     args: [userId],
@@ -66,6 +87,14 @@ export async function getAvatar(userId: string): Promise<{ mime: string; data: B
 }
 
 export async function listFollowers(userId: string, limit = 100): Promise<FollowerSummary[]> {
+  return cached(
+    `followers:${userId}:${limit}`,
+    { ttl: cacheConfig.commentsSeconds, tags: [`user:${userId}`] },
+    () => loadFollowers(userId, limit),
+  );
+}
+
+async function loadFollowers(userId: string, limit: number): Promise<FollowerSummary[]> {
   const result = await db.execute({
     sql: `SELECT u.id, u.name, u.profession, u.avatar_version, f.created_at
           FROM follows f JOIN users u ON u.id = f.follower_id

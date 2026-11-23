@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import type { SessionUser } from "./auth";
+import { cacheConfig } from "@/data/site";
+import { cached, invalidateTag } from "./cache";
 
 export interface Comment {
   id: string;
@@ -12,6 +14,14 @@ export interface Comment {
 }
 
 export async function listComments(postId: string, limit: number): Promise<Comment[]> {
+  return cached(
+    `comments:${postId}:${limit}`,
+    { ttl: cacheConfig.commentsSeconds, staleIfError: cacheConfig.staleIfErrorSeconds, tags: [`comments:${postId}`] },
+    () => loadComments(postId, limit),
+  );
+}
+
+async function loadComments(postId: string, limit: number): Promise<Comment[]> {
   const result = await db.execute({
     sql: `SELECT c.id, c.body, c.created_at, c.user_id, u.name AS author_name, u.avatar_version
           FROM comments c JOIN users u ON u.id = c.user_id
@@ -37,16 +47,18 @@ export async function addComment(postId: string, user: SessionUser, body: string
     sql: "INSERT INTO comments (id, post_id, user_id, body, created_at) VALUES (?, ?, ?, ?, ?)",
     args: [id, postId, user.id, body, createdAt],
   });
+  invalidateTag(`comments:${postId}`, `post:${postId}`);
   return { id, body, createdAt, authorName: user.name, userId: user.id, authorAvatarVersion: user.avatarVersion };
 }
 
 export type DeleteResult = "deleted" | "not-found" | "forbidden";
 
 export async function deleteComment(id: string, user: SessionUser): Promise<DeleteResult> {
-  const result = await db.execute({ sql: "SELECT user_id FROM comments WHERE id = ?", args: [id] });
+  const result = await db.execute({ sql: "SELECT user_id, post_id FROM comments WHERE id = ?", args: [id] });
   const row = result.rows[0];
   if (!row) return "not-found";
   if (String(row.user_id) !== user.id && user.role !== "admin") return "forbidden";
   await db.execute({ sql: "DELETE FROM comments WHERE id = ?", args: [id] });
+  invalidateTag(`comments:${String(row.post_id)}`, `post:${String(row.post_id)}`);
   return "deleted";
 }
