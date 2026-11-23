@@ -6,7 +6,7 @@ export default defineConfig({
   output: "server",
   adapter: vercel(),
   site: process.env.SITE_URL ?? "http://localhost:4321",
-  security: { checkOrigin: true },
+  security: { checkOrigin: false }, // CSRF ditangani middleware (src/lib/same-origin.ts)
   env: {
     schema: {
       ST_BLOG_DB_TURSO_DATABASE_URL: envField.string({ context: "server", access: "secret" }),
