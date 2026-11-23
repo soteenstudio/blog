@@ -1,7 +1,8 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import PostForm from "@/components/PostForm.astro";
-import { createPost, listCategories } from "@/lib/posts";
+import { DEFAULT_CATEGORY_ID } from "@/lib/categories";
+import { createPost } from "@/lib/posts";
 import type { PostInput } from "@/lib/posts";
 import { parsePostForm } from "@/lib/validation";
 
@@ -20,7 +21,7 @@ let values: PostInput = {
   slug: "",
   excerpt: "",
   content: "",
-  category: "",
+  category: DEFAULT_CATEGORY_ID,
   status: "draft",
 };
 let error: string | null = null;
@@ -36,14 +37,13 @@ if (Astro.request.method === "POST") {
   }
 }
 
-const categories = (await listCategories()).map((c) => c.name);
 ---
 
 <BaseLayout title={copy.dashboard.newPost}>
   <section class="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
     <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{copy.dashboard.newPost}</h1>
     <div class="mt-10">
-      <PostForm values={values} error={error} action="/dashboard/posts/new" categories={categories} />
+      <PostForm values={values} error={error} action="/dashboard/posts/new" />
     </div>
   </section>
 </BaseLayout>

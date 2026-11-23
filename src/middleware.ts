@@ -86,11 +86,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
   if (barePath === "/dashboard" || barePath.startsWith("/dashboard/")) {
     if (!user) return toLogin();
     // Dashboard artikel: admin dan akun yang diberi izin menulis.
-    // Halaman izin (/dashboard/users): hanya admin.
-    const adminOnly = barePath === "/dashboard/users" || barePath.startsWith("/dashboard/users/");
-    const allowed = adminOnly ? user.role === "admin" : user.canPost;
+    // Halaman Kelola akun (/dashboard/users): admin dan pemegang job pengelola (Founder, dll.).
+    // Tindakan di dalamnya dibatasi lagi per jenis di halamannya sendiri (ban/hapus: hanya admin).
+    const usersPage = barePath === "/dashboard/users" || barePath.startsWith("/dashboard/users/");
+    const allowed = usersPage ? user.canManageJobs : user.canPost;
     if (!allowed) {
-      locals.forbidden = adminOnly ? "admin" : "author";
+      locals.forbidden = usersPage ? "manager" : "author";
       return context.rewrite("/403");
     }
   }
@@ -108,6 +109,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   // Alamat berawalan dilayani oleh halaman yang sama tanpa awalan.
   const response = urlLocale ? await next((barePath === "/" ? "/" : barePath) + url.search) : await next();
+
+  // Header keamanan dasar untuk semua respons. Respons dari fetch() bisa tidak bisa diubah; abaikan saja.
+  try {
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set("X-Frame-Options", "DENY"); // cegah clickjacking pada form login/daftar
+    response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    if (import.meta.env.PROD) {
+      response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+    }
+  } catch {
+    /* header immutable */
+  }
 
   // Halaman berisi data per-pengguna (suka, komentar, menu akun): jangan di-cache bersama.
   if (user && !response.headers.has("Cache-Control")) {

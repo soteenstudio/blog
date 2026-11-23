@@ -20,7 +20,7 @@ const path = pathname.split("?")[0];
 // Pengunjung biasa tidak melihat menu apa pun; tautan menulis dan izin hanya muncul untuk yang berhak.
 const links = [
   { href: "/dashboard/posts/new", label: copy.nav.write, show: !!user?.canPost },
-  { href: "/dashboard/users", label: copy.nav.permissions, show: user?.role === "admin" },
+  { href: "/dashboard/users", label: copy.nav.permissions, show: !!user?.canManageJobs },
 ].filter((l) => l.show);
 ---
 
@@ -82,7 +82,7 @@ const links = [
                   </a>
                 </>
               )}
-              {user.role === "admin" && (
+              {user.canManageJobs && (
                 <a
                   href={to("/dashboard/users")}
                   class="flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors hover:bg-accent"

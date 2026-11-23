@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import PostForm from "@/components/PostForm.astro";
-import { canManagePost, deletePost, getPostById, listCategories, updatePost } from "@/lib/posts";
+import { canManagePost, deletePost, getPostById, updatePost } from "@/lib/posts";
 import type { PostInput } from "@/lib/posts";
 import { parsePostForm } from "@/lib/validation";
 
@@ -51,14 +51,13 @@ if (Astro.request.method === "POST") {
   }
 }
 
-const categories = (await listCategories()).map((c) => c.name);
 ---
 
 <BaseLayout title={copy.dashboard.editPost}>
   <section class="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
     <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{copy.dashboard.editPost}</h1>
     <div class="mt-10">
-      <PostForm values={values} error={error} action={`/dashboard/posts/${id}`} categories={categories} />
+      <PostForm values={values} error={error} action={`/dashboard/posts/${id}`} />
     </div>
   </section>
 </BaseLayout>

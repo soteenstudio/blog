@@ -1,6 +1,10 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import PasswordInput from "@/components/PasswordInput.astro";
+import Turnstile from "@/components/Turnstile.astro";
 import { authenticate, createSession, safeNextPath } from "@/lib/auth";
+import { limits } from "@/data/site";
+import { verifyTurnstile } from "@/lib/turnstile";
 import { stripLocale } from "@/lib/i18n";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { parseLoginForm } from "@/lib/validation";
@@ -15,21 +19,38 @@ if (Astro.locals.user) return Astro.redirect(to(next));
 let error: string | null = null;
 let email = "";
 
+// Halaman berisi token dan form: jangan disimpan di cache mana pun.
+Astro.response.headers.set("Cache-Control", "no-store");
+
 if (Astro.request.method === "POST") {
   const form = await Astro.request.formData();
   const input = parseLoginForm(form);
   email = input.email;
 
   const ip = clientKey(() => Astro.clientAddress);
-  if (!rateLimit(`login:${ip}`, 10, 15 * 60_000)) {
+  const honeypot = String(form.get("website") ?? "").length > 0; // kolom jebakan: manusia tidak melihatnya
+
+  if (honeypot) {
+    error = copy.errors.invalidRequest;
+  } else if (!rateLimit(`login:${ip}`, limits.loginPerIp.max, limits.loginPerIp.windowMs)) {
     error = copy.errors.tooManyRequests;
   } else {
-    const userId = input.email && input.password ? await authenticate(input.email, input.password) : null;
-    if (!userId) {
+    // Captcha diperiksa sebelum menyentuh database, sehingga bot tidak bisa menebak sandi tanpa lolos dulu.
+    const captcha = await verifyTurnstile(form, ip, "login");
+    if (captcha !== "ok") {
+      error = captcha === "failed" ? copy.errors.captchaFailed : copy.errors.captchaUnavailable;
+    } else if (!input.formatOk) {
       error = copy.errors.invalidCredentials;
+    } else if (!rateLimit(`login-email:${input.email}`, limits.loginPerEmail.max, limits.loginPerEmail.windowMs)) {
+      error = copy.errors.tooManyRequests;
     } else {
-      await createSession(Astro.cookies, userId);
-      return Astro.redirect(to(next), 303);
+      const result = await authenticate(input.email, input.password);
+      if (!result.ok) {
+        error = result.reason === "banned" ? copy.errors.accountBanned : copy.errors.invalidCredentials;
+      } else {
+        await createSession(Astro.cookies, result.userId);
+        return Astro.redirect(to(next), 303);
+      }
     }
   }
 }
@@ -68,19 +89,17 @@ const registerHref = to(next === "/" ? "/register" : `/register?next=${encodeURI
           }
           <div>
             <label for="email" class="label">{copy.auth.email}</label>
-            <input id="email" name="email" type="email" required autocomplete="email" value={email} class="field" />
+            <input id="email" name="email" type="email" required maxlength="254" autocomplete="email" value={email} class="field" />
           </div>
           <div>
             <label for="password" class="label">{copy.auth.password}</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autocomplete="current-password"
-              class="field"
-            />
+            <PasswordInput autocomplete="current-password" maxlength={128} />
           </div>
+          <!-- Kolom jebakan untuk bot: disembunyikan dari manusia dan pembaca layar. -->
+          <div aria-hidden="true" class="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+            <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+          </div>
+          <Turnstile action="login" />
           <button type="submit" class="btn btn-brand w-full">{copy.auth.loginSubmit}</button>
         </form>
 

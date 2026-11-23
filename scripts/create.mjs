@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS users (
   avatar_data TEXT,
   avatar_mime TEXT,
   avatar_version TEXT,
+  banned_at TEXT,
   created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 
@@ -47,7 +48,7 @@ CREATE TABLE IF NOT EXISTS posts (
   alt_title TEXT,
   alt_excerpt TEXT,
   alt_content TEXT,
-  category TEXT NOT NULL DEFAULT 'Umum',
+  category TEXT NOT NULL DEFAULT 'general',
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
   author_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   author_name TEXT NOT NULL DEFAULT 'Tim SoTeen Studio',

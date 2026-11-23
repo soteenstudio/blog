@@ -3,7 +3,7 @@ export const seedPosts = [
   {
     slug: "kenapa-kami-membuat-blog-ini",
     title: "Kenapa kami membuat blog ini",
-    category: "Studio",
+    category: "studio",
     excerpt: "Tempat kami mencatat proses, keputusan teknis, dan eksperimen, termasuk yang gagal.",
     content: `Studio kecil biasanya menyimpan pelajaran terbaiknya di kepala orang-orang di dalamnya. Blog ini cara kami memindahkannya ke tempat yang bisa dibaca siapa saja.
 
@@ -24,7 +24,7 @@ Selamat membaca.`,
   {
     slug: "memulai-eksperimen-tanpa-tujuan-yang-kaku",
     title: "Memulai eksperimen tanpa tujuan yang kaku",
-    category: "Eksperimen",
+    category: "experiments",
     excerpt: "Kenapa kami memberi ruang bagi ide setengah jadi sebelum memutuskan apakah layak dirilis.",
     content: `Banyak ide bagus mati karena dipaksa punya target sebelum sempat dicoba. Kami memilih urutan sebaliknya.
 
@@ -41,7 +41,7 @@ Sebagian kecil eksperimen layak dilanjutkan menjadi proyek. Sisanya kami arsipka
   {
     slug: "menjaga-kode-open-source-tetap-terawat",
     title: "Menjaga kode open-source tetap terawat",
-    category: "Open Source",
+    category: "open-source",
     excerpt: "Pelajaran dari merawat perkakas terbuka dengan tim kecil: dokumentasi, rilis, dan batasan.",
     content: `Merilis kode itu mudah. Merawatnya yang butuh disiplin.
 
@@ -65,7 +65,7 @@ Tidak semua permintaan fitur cocok. Menolak dengan sopan dan jelas lebih baik da
   {
     slug: "catatan-desain-sistem-di-game-kecil",
     title: "Catatan desain sistem di game kecil",
-    category: "Game",
+    category: "game",
     excerpt: "Bagaimana kami memilih sistem yang sederhana tetapi memberi ruang bagi pemain untuk berkreasi.",
     content: `Game kecil punya keuntungan: setiap sistem bisa dipahami seluruh tim. Kami berusaha menjaganya begitu.
 

@@ -1,6 +1,11 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import PasswordInput from "@/components/PasswordInput.astro";
+import Turnstile from "@/components/Turnstile.astro";
 import { createSession, findUserByEmail, registerUser, safeNextPath } from "@/lib/auth";
+import { limits } from "@/data/site";
+import { domainCanReceiveMail } from "@/lib/email-check";
+import { verifyTurnstile } from "@/lib/turnstile";
 import { stripLocale } from "@/lib/i18n";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { parseRegisterForm } from "@/lib/validation";
@@ -16,6 +21,8 @@ let error: string | null = null;
 let name = "";
 let email = "";
 
+Astro.response.headers.set("Cache-Control", "no-store");
+
 if (Astro.request.method === "POST") {
   const form = await Astro.request.formData();
   const { values, error: validationError } = parseRegisterForm(form, copy);
@@ -23,20 +30,32 @@ if (Astro.request.method === "POST") {
   email = values.email;
 
   const ip = clientKey(() => Astro.clientAddress);
-  if (!rateLimit(`register:${ip}`, 5, 60 * 60_000)) {
-    error = copy.errors.tooManyRequests;
+  const honeypot = String(form.get("website") ?? "").length > 0; // kolom jebakan: manusia tidak melihatnya
+
+  // Urutan: murah dulu (jebakan, validasi lokal), lalu pembatas laju, captcha, DNS, baru database.
+  if (honeypot) {
+    error = copy.errors.invalidRequest;
   } else if (validationError) {
     error = validationError;
-  } else if (await findUserByEmail(values.email)) {
-    error = copy.errors.emailTaken;
+  } else if (!rateLimit(`register:${ip}`, limits.registerPerIp.max, limits.registerPerIp.windowMs)) {
+    error = copy.errors.tooManyRequests;
   } else {
-    try {
-      const userId = await registerUser(values);
-      await createSession(Astro.cookies, userId);
-      return Astro.redirect(to(next), 303);
-    } catch (e) {
-      // Balapan dua pendaftaran dengan email sama: batasan UNIQUE di database yang menang.
-      error = String(e).includes("UNIQUE") ? copy.errors.emailTaken : copy.comments.genericError;
+    const captcha = await verifyTurnstile(form, ip, "register");
+    if (captcha !== "ok") {
+      error = captcha === "failed" ? copy.errors.captchaFailed : copy.errors.captchaUnavailable;
+    } else if (!(await domainCanReceiveMail(values.email.split("@")[1]))) {
+      error = copy.errors.emailUnreachable;
+    } else if (await findUserByEmail(values.email)) {
+      error = copy.errors.emailTaken;
+    } else {
+      try {
+        const userId = await registerUser(values);
+        await createSession(Astro.cookies, userId);
+        return Astro.redirect(to(next), 303);
+      } catch (e) {
+        // Balapan dua pendaftaran dengan email sama: batasan UNIQUE di database yang menang.
+        error = String(e).includes("UNIQUE") ? copy.errors.emailTaken : copy.comments.genericError;
+      }
     }
   }
 }
@@ -79,22 +98,32 @@ const loginHref = to(next === "/" ? "/login" : `/login?next=${encodeURIComponent
           </div>
           <div>
             <label for="email" class="label">{copy.auth.email}</label>
-            <input id="email" name="email" type="email" required autocomplete="email" value={email} class="field" />
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              maxlength="254"
+              autocomplete="email"
+              value={email}
+              class="field"
+              data-msg-invalid={copy.errors.emailInvalid}
+              data-msg-blocked={copy.errors.emailBlocked}
+              data-msg-typo={copy.errors.emailTypo("{d}")}
+              data-email-check
+            />
+            <p data-email-msg role="status" class="mt-1.5 hidden text-xs text-red-600 dark:text-red-400"></p>
           </div>
           <div>
             <label for="password" class="label">{copy.auth.password}</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              minlength="8"
-              maxlength="128"
-              autocomplete="new-password"
-              class="field"
-            />
-            <p class="mt-1.5 text-xs text-muted-foreground">{copy.auth.passwordHint}</p>
+            <PasswordInput autocomplete="new-password" meter nameId="name" emailId="email" minlength={8} maxlength={128} />
+            <p class="mt-2 text-xs text-muted-foreground">{copy.auth.passwordHint}</p>
           </div>
+          <!-- Kolom jebakan untuk bot: disembunyikan dari manusia dan pembaca layar. -->
+          <div aria-hidden="true" class="absolute -left-[9999px] h-0 w-0 overflow-hidden">
+            <label>Website <input type="text" name="website" tabindex="-1" autocomplete="off" /></label>
+          </div>
+          <Turnstile action="register" />
           <button type="submit" class="btn btn-brand w-full">{copy.auth.registerSubmit}</button>
         </form>
 
@@ -107,4 +136,34 @@ const loginHref = to(next === "/" ? "/login" : `/login?next=${encodeURIComponent
       </div>
     </div>
   </section>
+<script>
+  // Umpan balik email langsung di browser, dengan aturan yang sama dengan server (email-rules.ts).
+  import { checkEmail } from "../lib/email-rules";
+
+  const input = document.querySelector<HTMLInputElement>("[data-email-check]");
+  const message = document.querySelector<HTMLElement>("[data-email-msg]");
+
+  if (input && message) {
+    const show = (text: string) => {
+      message.textContent = text;
+      message.classList.toggle("hidden", !text);
+      input.setCustomValidity(text);
+    };
+
+    const validate = (final: boolean) => {
+      const value = input.value.trim();
+      if (!value) return show("");
+      const result = checkEmail(value);
+      if (result.ok) return show("");
+      if (result.problem === "blocked") return show(input.dataset.msgBlocked ?? "");
+      if (result.problem === "typo") return show((input.dataset.msgTypo ?? "").replace("{d}", result.suggestion ?? ""));
+      // Bentuk yang belum selesai diketik tidak perlu dimarahi sebelum kolom ditinggalkan.
+      return show(final ? (input.dataset.msgInvalid ?? "") : "");
+    };
+
+    input.addEventListener("input", () => validate(false));
+    input.addEventListener("blur", () => validate(true));
+    validate(false);
+  }
+</script>
 </BaseLayout>

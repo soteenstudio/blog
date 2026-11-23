@@ -1,32 +1,74 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Icon from "@/components/Icon.astro";
+import { professionSuggestions } from "@/data/site";
 import { formatDate } from "@/lib/format";
-import { listUsers, setCanPost } from "@/lib/users";
+import {
+  JOB_MAX_LENGTH,
+  canEditJobOf,
+  canModerate,
+  deleteUser,
+  listUsers,
+  setBanned,
+  setCanPost,
+  setJob,
+} from "@/lib/users";
 
 const to = Astro.locals.href;
 
 const copy = Astro.locals.copy;
 const locale = Astro.locals.locale;
 
-const me = Astro.locals.user!; // dijamin admin oleh middleware
+const me = Astro.locals.user!; // dijamin admin atau pengelola oleh middleware
+const isAdmin = me.role === "admin";
 const t = copy.dashboard.users;
 const q = (Astro.url.searchParams.get("q") ?? "").trim().slice(0, 80);
+
+// Hasil tindakan terakhir ditampilkan lewat ?notice= (kode tetap, bukan teks bebas dari URL).
+const notices: Record<string, { text: string; ok: boolean }> = {
+  saved: { text: t.saved, ok: true },
+  forbidden: { text: copy.errors.forbidden, ok: false },
+  privileged: { text: copy.errors.jobPrivileged, ok: false },
+  tooLong: { text: copy.errors.professionTooLong, ok: false },
+  notFound: { text: copy.errors.userNotFound, ok: false },
+};
+const notice = notices[Astro.url.searchParams.get("notice") ?? ""] ?? null;
 
 if (Astro.request.method === "POST") {
   const form = await Astro.request.formData();
   const action = form.get("_action");
-  const userId = form.get("userId");
+  const userId = typeof form.get("userId") === "string" ? String(form.get("userId")) : "";
   const returnQuery = typeof form.get("q") === "string" ? String(form.get("q")).trim().slice(0, 80) : "";
 
-  if (typeof userId === "string" && userId !== me.id && (action === "grant" || action === "revoke")) {
-    await setCanPost(userId, action === "grant");
+  // Semua keputusan hak akses diambil di sini (server); tombol yang tersembunyi di halaman bukan pengaman.
+  let result = "forbidden";
+
+  if (!userId) {
+    result = "notFound";
+  } else if (action === "setJob") {
+    const raw = form.get("profession");
+    const job = typeof raw === "string" ? raw.trim().replace(/\s+/g, " ") : "";
+    if (job.length > JOB_MAX_LENGTH) result = "tooLong";
+    else {
+      const outcome = await setJob(me, userId, job || null);
+      result = outcome === "ok" ? "saved" : outcome;
+    }
+  } else if (isAdmin && (action === "grant" || action === "revoke") && userId !== me.id) {
+    result = (await setCanPost(userId, action === "grant")) ? "saved" : "forbidden";
+  } else if (isAdmin && (action === "ban" || action === "unban")) {
+    result = (await setBanned(me, userId, action === "ban")) ? "saved" : "forbidden";
+  } else if (isAdmin && action === "delete") {
+    result = (await deleteUser(me, userId)) ? "saved" : "forbidden";
   }
-  return Astro.redirect(to(`/dashboard/users${returnQuery ? `?q=${encodeURIComponent(returnQuery)}` : ""}`), 303);
+
+  const params = new URLSearchParams();
+  if (returnQuery) params.set("q", returnQuery);
+  params.set("notice", result);
+  return Astro.redirect(to(`/dashboard/users?${params.toString()}`), 303);
 }
 
 const users = await listUsers(q);
-const revokeConfirm = JSON.stringify(t.revokeConfirm);
+const confirmFor = (key: "revokeConfirm" | "banConfirm" | "deleteConfirm") => JSON.stringify(t[key]);
 const roleLabel = (u: (typeof users)[number]) =>
   u.role === "admin" ? t.roleAdmin : u.canPost ? t.roleAuthor : t.roleMember;
 ---
@@ -44,6 +86,22 @@ const roleLabel = (u: (typeof users)[number]) =>
     <h1 class="mt-6 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{t.title}</h1>
     <p class="mt-3 max-w-2xl text-muted-foreground">{t.description}</p>
 
+    {
+      notice && (
+        <p
+          role={notice.ok ? "status" : "alert"}
+          class:list={[
+            "mt-8 rounded-xl border px-4 py-3 text-sm",
+            notice.ok
+              ? "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
+              : "border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300",
+          ]}
+        >
+          {notice.text}
+        </p>
+      )
+    }
+
     <form method="get" class="mt-8 flex max-w-md gap-2" role="search">
       <label for="q" class="sr-only">{t.searchLabel}</label>
       <input id="q" name="q" type="search" value={q} placeholder={t.searchPlaceholder} class="field" />
@@ -55,50 +113,102 @@ const roleLabel = (u: (typeof users)[number]) =>
         <p class="mt-10 rounded-3xl border border-dashed p-10 text-center text-muted-foreground">{t.empty}</p>
       ) : (
         <div class="mt-8 overflow-x-auto rounded-3xl border">
-          <table class="w-full min-w-[40rem] text-left text-sm">
+          <table class="w-full min-w-[56rem] text-left text-sm">
             <thead class="border-b bg-secondary/50 text-xs text-muted-foreground">
               <tr>
                 <th class="px-5 py-3 font-medium">{t.colUser}</th>
                 <th class="px-5 py-3 font-medium">{t.colRole}</th>
+                <th class="px-5 py-3 font-medium">{t.colJob}</th>
                 <th class="px-5 py-3 font-medium">{t.colJoined}</th>
-                <th class="px-5 py-3 text-right font-medium">{t.colPermission}</th>
+                {isAdmin && <th class="px-5 py-3 text-right font-medium">{t.colActions}</th>}
               </tr>
             </thead>
             <tbody class="divide-y">
-              {users.map((u) => (
-                <tr>
-                  <td class="px-5 py-4">
-                    <p class="font-medium">{u.name}</p>
-                    <p class="mt-0.5 text-xs text-muted-foreground">{u.email}</p>
-                  </td>
-                  <td class="px-5 py-4">
-                    <span class:list={["badge", u.canPost && "badge-live"]}>{roleLabel(u)}</span>
-                  </td>
-                  <td class="whitespace-nowrap px-5 py-4 text-muted-foreground">{formatDate(u.createdAt, locale)}</td>
-                  <td class="px-5 py-4 text-right">
-                    {u.role === "admin" ? (
-                      <span class="text-xs text-muted-foreground">{t.always}</span>
-                    ) : u.canPost ? (
-                      <form method="post" onsubmit={`return confirm(${revokeConfirm})`}>
-                        <input type="hidden" name="userId" value={u.id} />
-                        <input type="hidden" name="_action" value="revoke" />
-                        <input type="hidden" name="q" value={q} />
-                        <button type="submit" class="btn btn-danger btn-sm">{t.revoke}</button>
-                      </form>
-                    ) : (
-                      <form method="post">
-                        <input type="hidden" name="userId" value={u.id} />
-                        <input type="hidden" name="_action" value="grant" />
-                        <input type="hidden" name="q" value={q} />
-                        <button type="submit" class="btn btn-brand btn-sm">{t.grant}</button>
-                      </form>
+              {users.map((u) => {
+                const editableJob = canEditJobOf(me, u);
+                const moderatable = canModerate(me, u);
+                return (
+                  <tr class:list={[u.banned && "bg-red-50/40 dark:bg-red-500/5"]}>
+                    <td class="px-5 py-4">
+                      <p class="font-medium">{u.name}</p>
+                      <p class="mt-0.5 text-xs text-muted-foreground">{u.email}</p>
+                    </td>
+                    <td class="px-5 py-4">
+                      <div class="flex flex-wrap gap-1.5">
+                        <span class:list={["badge", u.canPost && "badge-live"]}>{roleLabel(u)}</span>
+                        {u.banned && <span class="badge border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">{t.statusBanned}</span>}
+                      </div>
+                    </td>
+                    <td class="px-5 py-4">
+                      {editableJob ? (
+                        <form method="post" class="flex items-center gap-2">
+                          <input type="hidden" name="userId" value={u.id} />
+                          <input type="hidden" name="_action" value="setJob" />
+                          <input type="hidden" name="q" value={q} />
+                          <input
+                            name="profession"
+                            type="text"
+                            maxlength={JOB_MAX_LENGTH}
+                            list="job-options"
+                            value={u.profession ?? ""}
+                            placeholder={t.jobPlaceholder}
+                            aria-label={`${t.colJob}: ${u.name}`}
+                            class="field !py-1.5 w-44"
+                          />
+                          <button type="submit" class="btn btn-outline btn-sm">{t.jobSave}</button>
+                        </form>
+                      ) : (
+                        <span class="text-muted-foreground" title={t.jobLocked}>
+                          {u.profession ?? "—"}
+                        </span>
+                      )}
+                    </td>
+                    <td class="whitespace-nowrap px-5 py-4 text-muted-foreground">{formatDate(u.createdAt, locale)}</td>
+                    {isAdmin && (
+                      <td class="px-5 py-4">
+                        {u.role === "admin" ? (
+                          <p class="text-right text-xs text-muted-foreground">{t.always}</p>
+                        ) : (
+                          <div class="flex flex-wrap justify-end gap-2">
+                            <form method="post" onsubmit={u.canPost ? `return confirm(${confirmFor("revokeConfirm")})` : undefined}>
+                              <input type="hidden" name="userId" value={u.id} />
+                              <input type="hidden" name="_action" value={u.canPost ? "revoke" : "grant"} />
+                              <input type="hidden" name="q" value={q} />
+                              <button type="submit" class:list={["btn btn-sm", u.canPost ? "btn-outline" : "btn-brand"]}>
+                                {u.canPost ? t.revoke : t.grant}
+                              </button>
+                            </form>
+                            {moderatable && (
+                              <>
+                                <form method="post" onsubmit={u.banned ? undefined : `return confirm(${confirmFor("banConfirm")})`}>
+                                  <input type="hidden" name="userId" value={u.id} />
+                                  <input type="hidden" name="_action" value={u.banned ? "unban" : "ban"} />
+                                  <input type="hidden" name="q" value={q} />
+                                  <button type="submit" class:list={["btn btn-sm", u.banned ? "btn-outline" : "btn-danger"]}>
+                                    {u.banned ? t.unban : t.ban}
+                                  </button>
+                                </form>
+                                <form method="post" onsubmit={`return confirm(${confirmFor("deleteConfirm")})`}>
+                                  <input type="hidden" name="userId" value={u.id} />
+                                  <input type="hidden" name="_action" value="delete" />
+                                  <input type="hidden" name="q" value={q} />
+                                  <button type="submit" class="btn btn-danger btn-sm">{t.delete}</button>
+                                </form>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </td>
                     )}
-                  </td>
-                </tr>
-              ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
+        <datalist id="job-options">
+          {professionSuggestions.map((p) => <option value={p} />)}
+        </datalist>
       )
     }
   </section>

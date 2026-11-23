@@ -13,7 +13,8 @@
     "preview": "astro preview",
     "check": "astro check",
     "db:migrate": "node --env-file=.env scripts/migrate.mjs",
-    "db:make-admin": "node --env-file=.env scripts/make-admin.mjs"
+    "db:make-admin": "node --env-file=.env scripts/make-admin.mjs",
+    "db:move-category": "node --env-file=.env scripts/move-category.mjs"
   },
   "dependencies": {
     "@astrojs/node": "^9.0.0",

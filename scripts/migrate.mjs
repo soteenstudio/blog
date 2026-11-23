@@ -1,4 +1,5 @@
 import { createClient } from "@libsql/client";
+import { resolveCategoryId } from "../src/data/categories.mjs";
 
 const url = process.env.ST_BLOG_DB_TURSO_DATABASE_URL;
 if (!url) {
@@ -39,7 +40,7 @@ const statements = [
     alt_title TEXT,
     alt_excerpt TEXT,
     alt_content TEXT,
-    category TEXT NOT NULL DEFAULT 'Umum',
+    category TEXT NOT NULL DEFAULT 'general',
     status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published')),
     author_id TEXT REFERENCES users(id) ON DELETE SET NULL,
     author_name TEXT NOT NULL DEFAULT 'Tim SoTeen Studio',
@@ -86,6 +87,7 @@ async function ensureColumn(table, column, ddl) {
 
 await ensureColumn("users", "can_post", "INTEGER NOT NULL DEFAULT 0");
 await ensureColumn("users", "profession", "TEXT");
+await ensureColumn("users", "banned_at", "TEXT");
 await ensureColumn("users", "avatar_data", "TEXT");
 await ensureColumn("users", "avatar_mime", "TEXT");
 await ensureColumn("users", "avatar_version", "TEXT");
@@ -93,5 +95,19 @@ await ensureColumn("posts", "lang", "TEXT NOT NULL DEFAULT 'id'");
 await ensureColumn("posts", "alt_title", "TEXT");
 await ensureColumn("posts", "alt_excerpt", "TEXT");
 await ensureColumn("posts", "alt_content", "TEXT");
+
+// Kategori lama disimpan sebagai teks bebas ("Umum", "Open Source"); ubah ke id dari src/data/categories.mjs.
+// Aman dijalankan berulang. Nilai yang tidak dikenal dibiarkan (tetap tampil apa adanya).
+const stored = await db.execute("SELECT DISTINCT category FROM posts");
+for (const row of stored.rows) {
+  const value = String(row.category);
+  const id = resolveCategoryId(value);
+  if (id && id !== value) {
+    const res = await db.execute({ sql: "UPDATE posts SET category = ? WHERE category = ?", args: [id, value] });
+    console.log(`Kategori "${value}" -> "${id}" (${res.rowsAffected} artikel).`);
+  } else if (!id) {
+    console.warn(`Kategori "${value}" tidak ada di daftar; artikelnya perlu dipindah (pnpm db:move-category).`);
+  }
+}
 
 console.log(`Migrasi selesai di ${url}`);

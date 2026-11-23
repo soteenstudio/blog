@@ -35,7 +35,19 @@ export const limits = {
   commentsPerHour: { max: 60, windowMs: 60 * 60_000 },
   commentDeletePerMinute: { max: 30, windowMs: 60_000 },
   avatarRemovePerMinute: { max: 10, windowMs: 60_000 },
+  /** Percobaan masuk per IP, dan per alamat email (melindungi satu akun dari tebakan dari banyak IP). */
+  loginPerIp: { max: 10, windowMs: 15 * 60_000 },
+  loginPerEmail: { max: 8, windowMs: 15 * 60_000 },
+  /** Pendaftaran yang lolos validasi awal, per IP. */
+  registerPerIp: { max: 5, windowMs: 60 * 60_000 },
 } as const;
+
+/**
+ * Job yang boleh mengatur job akun lain, selain admin. Dicocokkan tanpa peduli huruf besar/kecil, spasi,
+ * atau tanda hubung ("Co-Founder" = "cofounder"). Pemegang job ini hanya bisa mengatur job akun biasa:
+ * memberi atau mengubah job dari daftar ini tetap hak admin, supaya hak ini tidak bisa diwariskan sendiri.
+ */
+export const jobManagerProfessions = ["Founder", "Co-Founder", "Owner", "CEO", "CTO", "COO"] as const;
 
 export type SocialIcon = "linkedin" | "github" | "instagram";
 

@@ -1,0 +1,33 @@
+---
+/**
+ * Widget Cloudflare Turnstile. Menambah input tersembunyi `cf-turnstile-response` ke form; token itu
+ * diperiksa di server (src/lib/turnstile.ts). Tidak menampilkan apa pun bila kunci belum diisi.
+ */
+import { turnstileSiteKey } from "@/lib/turnstile";
+
+interface Props {
+  action: "login" | "register";
+}
+
+const { action } = Astro.props;
+const locale = Astro.locals.locale;
+---
+
+{
+  turnstileSiteKey && (
+    <>
+      <div
+        class="cf-turnstile min-h-[65px]"
+        data-sitekey={turnstileSiteKey}
+        data-action={action}
+        data-theme="auto"
+        data-language={locale}
+        data-size="flexible"
+      />
+      <noscript>
+        <p class="text-xs text-muted-foreground">{Astro.locals.copy.errors.captchaNoScript}</p>
+      </noscript>
+      <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
+    </>
+  )
+}

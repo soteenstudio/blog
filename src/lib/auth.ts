@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { AstroCookies } from "astro";
 import { ADMIN_EMAILS } from "astro:env/server";
-import { cacheConfig } from "@/data/site";
+import { cacheConfig, jobManagerProfessions } from "@/data/site";
 import { cached, invalidateKey } from "./cache";
 import { db } from "./db";
 import { hashPassword, verifyPassword } from "./password";
@@ -20,6 +20,8 @@ export interface SessionUser {
   avatarVersion: string | null;
   /** True untuk admin dan untuk akun yang diberi izin menulis oleh admin. */
   canPost: boolean;
+  /** True untuk admin dan untuk pemegang job pengelola (Founder, dll.): boleh membuka halaman Kelola akun. */
+  canManageJobs: boolean;
 }
 
 /** Yang disimpan di database hanya hash token, jadi bocornya tabel sessions tidak membocorkan sesi aktif. */
@@ -42,6 +44,15 @@ const listedAdmins = new Set(
 );
 
 export const isListedAdmin = (email: string) => listedAdmins.has(normalizeEmail(email));
+
+/** Peran efektif: kolom role di database atau terdaftar di ADMIN_EMAILS. */
+export const roleOf = (dbRole: unknown, email: string): Role => (dbRole === "admin" || isListedAdmin(email) ? "admin" : "user");
+
+const normalizeJob = (job: string) => job.toLowerCase().replace(/[^a-z0-9]+/g, "");
+const managerJobs = new Set(jobManagerProfessions.map(normalizeJob));
+
+/** Apakah job ini termasuk daftar pengelola (Founder, dll.)? */
+export const isManagerJob = (job: string | null | undefined) => !!job && managerJobs.has(normalizeJob(job));
 
 export async function createSession(cookies: AstroCookies, userId: string) {
   const token = randomBytes(32).toString("base64url");
@@ -88,7 +99,7 @@ export async function getSessionUser(token: string): Promise<SessionUser | null>
 
 async function loadSession(token: string): Promise<CachedSession | null> {
   const result = await db.execute({
-    sql: `SELECT u.id, u.name, u.email, u.role, u.can_post, u.profession, u.avatar_version, s.expires_at
+    sql: `SELECT u.id, u.name, u.email, u.role, u.can_post, u.profession, u.avatar_version, u.banned_at, s.expires_at
           FROM sessions s JOIN users u ON u.id = s.user_id
           WHERE s.id = ?`,
     args: [hashToken(token)],
@@ -96,13 +107,20 @@ async function loadSession(token: string): Promise<CachedSession | null> {
   const row = result.rows[0];
   if (!row) return null;
 
+  // Akun yang diblokir tidak punya sesi yang sah, walau tokennya masih ada.
+  if (row.banned_at) {
+    await db.execute({ sql: "DELETE FROM sessions WHERE user_id = ?", args: [String(row.id)] });
+    return null;
+  }
+
   if (new Date(String(row.expires_at)).getTime() < Date.now()) {
     await db.execute({ sql: "DELETE FROM sessions WHERE id = ?", args: [hashToken(token)] });
     return null;
   }
 
   const email = String(row.email);
-  const role: Role = row.role === "admin" || isListedAdmin(email) ? "admin" : "user";
+  const role = roleOf(row.role, email);
+  const profession = row.profession ? String(row.profession) : null;
 
   return {
     expiresAt: new Date(String(row.expires_at)).getTime(),
@@ -111,9 +129,10 @@ async function loadSession(token: string): Promise<CachedSession | null> {
       name: String(row.name),
       email,
       role,
-      profession: row.profession ? String(row.profession) : null,
+      profession,
       avatarVersion: row.avatar_version ? String(row.avatar_version) : null,
       canPost: role === "admin" || Number(row.can_post) === 1,
+      canManageJobs: role === "admin" || isManagerJob(profession),
     },
   };
 }
@@ -138,21 +157,26 @@ export async function registerUser(input: { name: string; email: string; passwor
 
 export async function findUserByEmail(email: string) {
   const result = await db.execute({
-    sql: "SELECT id, name, email, role, password_hash FROM users WHERE email = ?",
+    sql: "SELECT id, name, email, role, password_hash, banned_at FROM users WHERE email = ?",
     args: [normalizeEmail(email)],
   });
   const row = result.rows[0];
   if (!row) return null;
-  return { id: String(row.id), passwordHash: String(row.password_hash) };
+  return { id: String(row.id), passwordHash: String(row.password_hash), banned: !!row.banned_at };
 }
 
 /** Selalu menghitung hash walau user tidak ada, supaya waktu respons tidak membocorkan email terdaftar. */
 const DUMMY_HASH = "scrypt$AAAAAAAAAAAAAAAAAAAAAA==$" + "A".repeat(86) + "==";
 
-export async function authenticate(email: string, password: string): Promise<string | null> {
+export type AuthResult = { ok: true; userId: string } | { ok: false; reason: "invalid" | "banned" };
+
+/** Status "banned" hanya dibuka bila kata sandinya benar, supaya orang lain tidak bisa mengintip status akun. */
+export async function authenticate(email: string, password: string): Promise<AuthResult> {
   const user = await findUserByEmail(email);
   const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
-  return user && ok ? user.id : null;
+  if (!user || !ok) return { ok: false, reason: "invalid" };
+  if (user.banned) return { ok: false, reason: "banned" };
+  return { ok: true, userId: user.id };
 }
 
 /** Hanya izinkan path internal untuk parameter ?next= agar tidak jadi open redirect. */

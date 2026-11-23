@@ -10,6 +10,6 @@ declare namespace App {
     href: (path: string) => string;
     copy: import("./data/copy/index").Copy;
     /** Diisi middleware saat akses ke /dashboard ditolak. */
-    forbidden?: "admin" | "author";
+    forbidden?: "admin" | "author" | "manager";
   }
 }

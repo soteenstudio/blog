@@ -1,17 +1,20 @@
 ---
 import MarkdownField from "./MarkdownField.astro";
 import { locales } from "@/data/copy/index";
+import { categoryOptions, resolveCategoryId } from "@/lib/categories";
 import type { PostInput } from "@/lib/posts";
 
 interface Props {
   values: PostInput;
   error?: string | null;
   action: string;
-  categories: string[];
 }
-const { values, error, action, categories } = Astro.props;
+const { values, error, action } = Astro.props;
 const copy = Astro.locals.copy;
 const f = copy.dashboard.form;
+const categories = categoryOptions(Astro.locals.locale);
+// Kategori lama yang sudah dihapus dari daftar: paksa penulis memilih yang baru.
+const currentCategory = resolveCategoryId(values.category) ?? "";
 
 const editor = {
   tabWrite: f.tabWrite,
@@ -43,19 +46,10 @@ const editor = {
     </div>
     <div>
       <label for="category" class="label">{f.category}</label>
-      <input
-        id="category"
-        name="category"
-        type="text"
-        required
-        maxlength="40"
-        list="category-options"
-        value={values.category}
-        class="field"
-      />
-      <datalist id="category-options">
-        {categories.map((c) => <option value={c} />)}
-      </datalist>
+      <select id="category" name="category" required class="field">
+        {currentCategory === "" && <option value="" disabled selected>{f.categoryPlaceholder}</option>}
+        {categories.map((c) => <option value={c.id} selected={currentCategory === c.id}>{c.label}</option>)}
+      </select>
     </div>
     <div>
       <label for="status" class="label">{f.status}</label>

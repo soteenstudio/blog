@@ -2,30 +2,13 @@
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Avatar from "@/components/Avatar.astro";
 import Icon from "@/components/Icon.astro";
-import { professionSuggestions } from "@/data/site";
 import { formatDate } from "@/lib/format";
-import { listFollowers, updateProfession } from "@/lib/profile";
+import { listFollowers } from "@/lib/profile";
 
 const copy = Astro.locals.copy;
 const to = Astro.locals.href;
 const locale = Astro.locals.locale;
 const user = Astro.locals.user!; // dijamin sudah masuk oleh middleware
-let error: string | null = null;
-
-if (Astro.request.method === "POST") {
-  const form = await Astro.request.formData();
-  const raw = form.get("profession");
-  const profession = typeof raw === "string" ? raw.trim().replace(/\s+/g, " ") : "";
-
-  if (profession.length > 60) {
-    error = copy.errors.professionTooLong;
-  } else {
-    await updateProfession(user.id, profession || null);
-    return Astro.redirect(to("/profile?saved=1"), 303);
-  }
-}
-
-const saved = Astro.url.searchParams.get("saved") === "1";
 const followers = await listFollowers(user.id);
 ---
 
@@ -41,27 +24,6 @@ const followers = await listFollowers(user.id);
         <Icon name="arrow-up-right" />
       </a>
     </div>
-
-    {
-      saved && (
-        <p
-          role="status"
-          class="mt-8 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300"
-        >
-          {copy.profile.saved}
-        </p>
-      )
-    }
-    {
-      error && (
-        <p
-          role="alert"
-          class="mt-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
-        >
-          {error}
-        </p>
-      )
-    }
 
     <div class="mt-10 space-y-8">
       <div class="rounded-3xl border p-6 sm:p-8">
@@ -94,23 +56,11 @@ const followers = await listFollowers(user.id);
         </div>
       </div>
 
-      <form method="post" class="rounded-3xl border p-6 sm:p-8">
-        <label for="profession" class="label">{copy.profile.profession}</label>
-        <input
-          id="profession"
-          name="profession"
-          type="text"
-          maxlength="60"
-          list="profession-options"
-          value={user.profession ?? ""}
-          class="field"
-        />
-        <datalist id="profession-options">
-          {professionSuggestions.map((p) => <option value={p} />)}
-        </datalist>
+      <div class="rounded-3xl border p-6 sm:p-8">
+        <p class="label">{copy.profile.profession}</p>
+        <p class="text-sm">{user.profession ?? copy.people.noProfession}</p>
         <p class="mt-1.5 text-xs text-muted-foreground">{copy.profile.professionHint}</p>
-        <button type="submit" class="btn btn-brand mt-5">{copy.profile.save}</button>
-      </form>
+      </div>
 
       <div class="rounded-3xl border p-6 sm:p-8">
         <h2 class="font-display text-xl font-semibold tracking-tight">

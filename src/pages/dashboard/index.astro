@@ -1,4 +1,5 @@
 ---
+import { categoryLabel } from "@/lib/categories";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Icon from "@/components/Icon.astro";
 import { formatDate } from "@/lib/format";
@@ -26,7 +27,7 @@ const confirmMessage = JSON.stringify(copy.dashboard.deleteConfirm);
       </div>
       <div class="flex flex-wrap gap-2">
         {
-          isAdmin && (
+          Astro.locals.user?.canManageJobs && (
             <a href={to("/dashboard/users")} class="btn btn-outline">
               {copy.dashboard.manageUsers}
             </a>
@@ -63,7 +64,7 @@ const confirmMessage = JSON.stringify(copy.dashboard.deleteConfirm);
                   <td class="max-w-xs px-5 py-4">
                     <p class="font-medium">{post.title}</p>
                     <p class="mt-0.5 text-xs text-muted-foreground">
-                      {post.category} · /posts/{post.slug}
+                      {categoryLabel(post.category, Astro.locals.locale)} · /posts/{post.slug}
                     </p>
                   </td>
                   {isAdmin && <td class="px-5 py-4 text-muted-foreground">{post.authorName}</td>}

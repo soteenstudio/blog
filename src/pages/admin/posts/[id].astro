@@ -2,7 +2,7 @@
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import PostForm from "@/components/PostForm.astro";
 import { copy } from "@/data/copy";
-import { deletePost, getPostById, listCategories, updatePost } from "@/lib/posts";
+import { deletePost, getPostById, updatePost } from "@/lib/posts";
 import type { PostInput } from "@/lib/posts";
 import { parsePostForm } from "@/lib/validation";
 
@@ -44,14 +44,13 @@ if (Astro.request.method === "POST") {
   }
 }
 
-const categories = (await listCategories()).map((c) => c.name);
 ---
 
 <BaseLayout title={copy.admin.editPost}>
   <section class="mx-auto max-w-3xl px-5 py-14 sm:px-8 sm:py-20">
     <h1 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">{copy.admin.editPost}</h1>
     <div class="mt-10">
-      <PostForm values={values} error={error} action={`/admin/posts/${id}`} categories={categories} />
+      <PostForm values={values} error={error} action={`/admin/posts/${id}`} />
     </div>
   </section>
 </BaseLayout>

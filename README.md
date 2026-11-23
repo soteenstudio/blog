@@ -34,7 +34,7 @@ Tidak ada artikel bawaan (hardcoded): setiap artikel dibuat manual lewat halaman
 | `/dashboard/posts/new` | admin dan akun berizin | menulis artikel baru (Markdown) |
 | `/dashboard` | admin dan akun berizin | daftar artikel; penulis hanya melihat miliknya, admin melihat semua |
 | `/dashboard/posts/<id>` | pemilik artikel dan admin | mengubah, menerbitkan, menghapus |
-| `/dashboard/users` | hanya admin | memberi atau mencabut izin menulis akun lain |
+| `/dashboard/users` | admin dan pengelola (Founder, dll.) | atur job; admin juga izin menulis, blokir, hapus akun |
 | `/profile` | semua akun | foto, profesi, dan daftar pengikut |
 | `/u/<id>` | publik | profil publik dan tombol Ikuti |
 
@@ -52,6 +52,50 @@ sudah ada sebagai admin permanen di database.
 Mencabut izin berlaku seketika; artikel lama penulis itu tetap tersimpan dan tetap dikelola admin.
 Bila database dibuat sebelum fitur izin ada, jalankan `pnpm db:migrate` lagi (kolom `users.can_post`
 ditambahkan otomatis tanpa menghapus data).
+
+## Job akun, blokir, dan hapus akun
+
+- **Job** (kolom "Job di studio" di profil) tidak lagi bisa diubah sendiri. Yang boleh mengaturnya: **admin**
+  dan pemegang job pengelola yang terdaftar di `jobManagerProfessions` (`src/data/site.ts`, bawaan: Founder,
+  Co-Founder, Owner, CEO, CTO, COO). Daftar itu dicocokkan tanpa peduli huruf besar/kecil atau tanda hubung.
+- Pemegang job pengelola hanya bisa mengatur job akun biasa. Memberi atau mengubah job dari daftar itu, serta
+  mengubah job admin dan sesama pengelola, tetap hak admin, supaya hak ini tidak bisa diwariskan sendiri.
+- Halaman `/dashboard/users` ("Kelola akun") terbuka untuk admin dan pengelola. **Memberi izin menulis,
+  memblokir, dan menghapus akun hanya untuk admin.** Admin tidak bisa memblokir/menghapus admin lain atau dirinya.
+- **Blokir**: akun langsung keluar dari semua sesi dan tidak bisa masuk (pesan khusus muncul bila kata sandinya
+  benar). Bisa dibuka lagi kapan saja. Di instance server lain, sesi yang sudah ter-cache bisa bertahan sampai
+  `cacheConfig.sessionSeconds` (30 detik).
+- **Hapus akun** permanen: komentar, suka, dan relasi ikutnya ikut terhapus. Artikelnya **tetap ada** dengan
+  nama penulis tanpa tautan profil.
+- Jalankan `pnpm db:migrate` sekali setelah memperbarui kode (menambah kolom `users.banned_at`).
+
+## Kategori artikel
+
+Daftar kategori ada di satu file: **`src/data/categories.mjs`**. Form menulis memakai daftar pilihan (bukan
+ketik bebas), dan labelnya mengikuti bahasa antarmuka, mis. `general` tampil "General" di EN dan "Umum" di ID.
+
+- **Tambah**: tambah satu objek `{ id, labels: { id, en } }`. Langsung muncul, tanpa migrasi.
+- **Ganti nama tampilan**: ubah `labels` saja. Jangan ubah `id` (itu yang tersimpan di database).
+- **Hapus**: buang objeknya. Artikel lama tetap tampil (dengan id sebagai label) sampai penulisnya memilih
+  kategori baru; atau pindahkan sekaligus dengan `pnpm db:move-category <id-lama> <id-baru>`.
+- Kategori teks bebas dari versi lama ("Umum", "Open Source") otomatis diubah ke id oleh `pnpm db:migrate`.
+
+## Keamanan login dan pendaftaran
+
+| Proteksi | Di mana | Catatan |
+| --- | --- | --- |
+| Validasi email ketat | daftar (server + live di browser) | menolak bentuk salah, TLD cadangan (`.test`, `.local`), domain isi asal (`ngasal.com` dan subdomainnya, nama yang memuat "ngasal"), email sekali pakai, dan salah ketik populer (`gmial.com`). Daftar ada di `src/lib/email-rules.ts`; tambah lewat env `BLOCKED_EMAIL_DOMAINS` |
+| Cek domain (MX/DNS) | daftar (server) | domain yang tidak ada atau menyatakan tidak menerima email ditolak; bila DNS timeout, dianggap lolos |
+| Pengukur kekuatan sandi | daftar | bar + label + saran, ID/EN (tanpa angka "waktu bobol", karena angkanya tidak bisa akurat). Server menolak sandi di bawah skor "Cukup" (`src/lib/password-strength.ts`) |
+| Cloudflare Turnstile | login dan daftar | token diverifikasi di server (`src/lib/turnstile.ts`) |
+| Kolom jebakan (honeypot) | login dan daftar | bot yang mengisi semua kolom ditolak |
+| Batas laju | login: 10/15 menit per IP dan 8/15 menit per email; daftar: 5/jam per IP | diatur di `limits` pada `src/data/site.ts`. Dihitung per instance server |
+| Header keamanan | semua halaman | `X-Frame-Options`, `nosniff`, `Referrer-Policy`, HSTS di produksi; halaman login/daftar `no-store` |
+
+**Mengaktifkan Turnstile.** Buat widget di dash.cloudflare.com > Turnstile (tambahkan domain blog Anda),
+lalu isi `TURNSTILE_SITE_KEY` dan `TURNSTILE_SECRET_KEY` di environment variable Vercel. Di `.env` lokal
+sudah terisi kunci uji Cloudflare yang selalu lolos. Bila kedua kunci kosong, verifikasi dilewati dan
+server menulis peringatan di log, jadi pastikan keduanya terisi di produksi.
 
 ## Fitur pembaca dan penulis
 
