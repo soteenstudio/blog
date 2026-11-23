@@ -1,13 +1,16 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { authenticate, createSession, safeNextPath } from "@/lib/auth";
+import { stripLocale } from "@/lib/i18n";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { parseLoginForm } from "@/lib/validation";
 
 const copy = Astro.locals.copy;
+const to = Astro.locals.href;
 
-const next = safeNextPath(Astro.url.searchParams.get("next"));
-if (Astro.locals.user) return Astro.redirect(next);
+// ?next= disimpan tanpa awalan bahasa; awalan ditambah saat mengarahkan.
+const next = stripLocale(safeNextPath(Astro.url.searchParams.get("next")));
+if (Astro.locals.user) return Astro.redirect(to(next));
 
 let error: string | null = null;
 let email = "";
@@ -26,12 +29,12 @@ if (Astro.request.method === "POST") {
       error = copy.errors.invalidCredentials;
     } else {
       await createSession(Astro.cookies, userId);
-      return Astro.redirect(next, 303);
+      return Astro.redirect(to(next), 303);
     }
   }
 }
 
-const registerHref = next === "/" ? "/register" : `/register?next=${encodeURIComponent(next)}`;
+const registerHref = to(next === "/" ? "/register" : `/register?next=${encodeURIComponent(next)}`);
 ---
 
 <BaseLayout title={copy.auth.loginTitle}>

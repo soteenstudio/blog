@@ -4,6 +4,8 @@ import Icon from "@/components/Icon.astro";
 import { formatDate } from "@/lib/format";
 import { listUsers, setCanPost } from "@/lib/users";
 
+const to = Astro.locals.href;
+
 const copy = Astro.locals.copy;
 const locale = Astro.locals.locale;
 
@@ -20,7 +22,7 @@ if (Astro.request.method === "POST") {
   if (typeof userId === "string" && userId !== me.id && (action === "grant" || action === "revoke")) {
     await setCanPost(userId, action === "grant");
   }
-  return Astro.redirect(`/dashboard/users${returnQuery ? `?q=${encodeURIComponent(returnQuery)}` : ""}`, 303);
+  return Astro.redirect(to(`/dashboard/users${returnQuery ? `?q=${encodeURIComponent(returnQuery)}` : ""}`), 303);
 }
 
 const users = await listUsers(q);
@@ -32,7 +34,7 @@ const roleLabel = (u: (typeof users)[number]) =>
 <BaseLayout title={t.title}>
   <section class="mx-auto max-w-5xl px-5 py-14 sm:px-8 sm:py-20">
     <a
-      href="/dashboard"
+      href={to("/dashboard")}
       class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
     >
       <Icon name="arrow-left" />

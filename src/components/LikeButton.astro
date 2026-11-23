@@ -52,7 +52,7 @@ const base =
           body: JSON.stringify({ postId: button.dataset.postId }),
         });
         if (res.status === 401) {
-          window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
+          window.location.href = `/${document.documentElement.lang}/login?next=${encodeURIComponent(window.location.pathname)}`;
           return;
         }
         if (!res.ok) return;

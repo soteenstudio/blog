@@ -5,6 +5,8 @@ import { canManagePost, deletePost, getPostById, listCategories, updatePost } fr
 import type { PostInput } from "@/lib/posts";
 import { parsePostForm } from "@/lib/validation";
 
+const to = Astro.locals.href;
+
 const copy = Astro.locals.copy;
 
 const user = Astro.locals.user!;
@@ -36,7 +38,7 @@ if (Astro.request.method === "POST") {
 
   if (form.get("_action") === "delete") {
     await deletePost(id);
-    return Astro.redirect("/dashboard", 303);
+    return Astro.redirect(to("/dashboard"), 303);
   }
 
   const parsed = parsePostForm(form, copy);
@@ -45,7 +47,7 @@ if (Astro.request.method === "POST") {
 
   if (!error) {
     await updatePost(id, values);
-    return Astro.redirect("/dashboard", 303);
+    return Astro.redirect(to("/dashboard"), 303);
   }
 }
 

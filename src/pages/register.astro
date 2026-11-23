@@ -1,13 +1,16 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import { createSession, findUserByEmail, registerUser, safeNextPath } from "@/lib/auth";
+import { stripLocale } from "@/lib/i18n";
 import { clientKey, rateLimit } from "@/lib/rate-limit";
 import { parseRegisterForm } from "@/lib/validation";
 
 const copy = Astro.locals.copy;
+const to = Astro.locals.href;
 
-const next = safeNextPath(Astro.url.searchParams.get("next"));
-if (Astro.locals.user) return Astro.redirect(next);
+// ?next= disimpan tanpa awalan bahasa; awalan ditambah saat mengarahkan.
+const next = stripLocale(safeNextPath(Astro.url.searchParams.get("next")));
+if (Astro.locals.user) return Astro.redirect(to(next));
 
 let error: string | null = null;
 let name = "";
@@ -30,7 +33,7 @@ if (Astro.request.method === "POST") {
     try {
       const userId = await registerUser(values);
       await createSession(Astro.cookies, userId);
-      return Astro.redirect(next, 303);
+      return Astro.redirect(to(next), 303);
     } catch (e) {
       // Balapan dua pendaftaran dengan email sama: batasan UNIQUE di database yang menang.
       error = String(e).includes("UNIQUE") ? copy.errors.emailTaken : copy.comments.genericError;
@@ -38,7 +41,7 @@ if (Astro.request.method === "POST") {
   }
 }
 
-const loginHref = next === "/" ? "/login" : `/login?next=${encodeURIComponent(next)}`;
+const loginHref = to(next === "/" ? "/login" : `/login?next=${encodeURIComponent(next)}`);
 ---
 
 <BaseLayout title={copy.auth.registerTitle}>

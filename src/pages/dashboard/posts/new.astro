@@ -5,6 +5,8 @@ import { createPost, listCategories } from "@/lib/posts";
 import type { PostInput } from "@/lib/posts";
 import { parsePostForm } from "@/lib/validation";
 
+const to = Astro.locals.href;
+
 const copy = Astro.locals.copy;
 
 const user = Astro.locals.user!; // dijamin punya izin menulis oleh middleware
@@ -30,7 +32,7 @@ if (Astro.request.method === "POST") {
 
   if (!error) {
     await createPost(values, { id: user.id, name: user.name });
-    return Astro.redirect("/dashboard", 303);
+    return Astro.redirect(to("/dashboard"), 303);
   }
 }
 

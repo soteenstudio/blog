@@ -4,7 +4,9 @@ import "@fontsource-variable/plus-jakarta-sans";
 import "@/styles/global.css";
 import Navbar from "@/components/Navbar.astro";
 import Footer from "@/components/Footer.astro";
+import { locales } from "@/data/copy/index";
 import { siteConfig } from "@/data/site";
+import { withLocale } from "@/lib/i18n";
 
 const copy = Astro.locals.copy;
 const locale = Astro.locals.locale;
@@ -17,7 +19,8 @@ interface Props {
 
 const { title, description = copy.site.description, ogType = "website" } = Astro.props;
 const fullTitle = title ? copy.meta.titleTemplate(title) : `${siteConfig.name} ${siteConfig.blogLabel}`;
-const canonical = new URL(Astro.url.pathname, Astro.site);
+const barePath = Astro.locals.path.split("?")[0];
+const canonical = new URL(withLocale(locale, barePath), Astro.site);
 ---
 
 <!doctype html>
@@ -28,6 +31,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     <title>{fullTitle}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
+    {locales.map((l) => <link rel="alternate" hreflang={l.code} href={new URL(withLocale(l.code, barePath), Astro.site)} />)}
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta property="og:site_name" content={`${siteConfig.name} ${siteConfig.blogLabel}`} />
     <meta property="og:type" content={ogType} />
@@ -50,7 +54,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site);
     </script>
   </head>
   <body class="flex min-h-screen flex-col">
-    <Navbar user={Astro.locals.user} pathname={Astro.url.pathname + Astro.url.search} />
+    <Navbar user={Astro.locals.user} pathname={Astro.locals.path} />
     <main class="flex-1">
       <slot />
     </main>

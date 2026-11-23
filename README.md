@@ -71,7 +71,9 @@ ditambahkan tanpa menghapus data.
 
 ## Bahasa
 
-Tombol bahasa di navbar (ID/EN) menyimpan pilihan di cookie `lang`. Teks antarmuka ada di
+Bahasa ditentukan oleh awalan URL: `/id/...` dan `/en/...` (mis. `/en/posts/judul`). Alamat tanpa awalan
+otomatis diarahkan ke bahasa terakhir yang dibuka (cookie `lang`), bawaannya Indonesia. Tombol bahasa di
+navbar (ID/EN) hanyalah tautan ke versi bahasa lain dari halaman yang sama. Teks antarmuka ada di
 `src/data/copy/id.ts` dan `src/data/copy/en.ts` (kunci harus sama; TypeScript akan memberi tahu bila
 ada yang kurang). Isi artikel tidak diterjemahkan otomatis; penulis mengisi terjemahannya sendiri (lihat di atas).
 

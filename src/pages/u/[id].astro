@@ -10,6 +10,7 @@ import { getPublicProfile } from "@/lib/profile";
 import { reveal } from "@/lib/reveal";
 
 const copy = Astro.locals.copy;
+const to = Astro.locals.href;
 const locale = Astro.locals.locale;
 const viewer = Astro.locals.user;
 
@@ -24,7 +25,7 @@ const [posts, following] = await Promise.all([
   listPublishedByAuthor(profile.id),
   viewer && !isSelf ? isFollowing(viewer.id, profile.id) : Promise.resolve(false),
 ]);
-const loginHref = `/login?next=${encodeURIComponent(Astro.url.pathname)}`;
+const loginHref = to(`/login?next=${encodeURIComponent(Astro.locals.path.split("?")[0])}`);
 const countTemplate = copy.people.followerCount(0).replace("0", "{n}");
 ---
 
@@ -49,7 +50,7 @@ const countTemplate = copy.people.followerCount(0).replace("0", "{n}");
         <div class="sm:ml-auto">
           {
             isSelf ? (
-              <a href="/profile" class="btn btn-outline">
+              <a href={to("/profile")} class="btn btn-outline">
                 {copy.people.editProfile}
               </a>
             ) : (

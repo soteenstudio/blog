@@ -110,6 +110,6 @@ const editor = {
 
   <div class="flex flex-wrap items-center gap-3">
     <button type="submit" class="btn btn-brand">{f.save}</button>
-    <a href="/dashboard" class="btn btn-outline">{f.cancel}</a>
+    <a href={Astro.locals.href("/dashboard")} class="btn btn-outline">{f.cancel}</a>
   </div>
 </form>

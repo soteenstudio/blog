@@ -2,6 +2,7 @@
 import BaseLayout from "@/layouts/BaseLayout.astro";
 
 const copy = Astro.locals.copy;
+const to = Astro.locals.href;
 ---
 
 <BaseLayout title={copy.notFound.title}>
@@ -9,6 +10,6 @@ const copy = Astro.locals.copy;
     <p class="font-display text-6xl font-semibold tracking-tight text-brand">404</p>
     <h1 class="mt-6 font-display text-3xl font-semibold tracking-tight sm:text-4xl">{copy.notFound.title}</h1>
     <p class="mt-4 text-lg text-muted-foreground">{copy.notFound.description}</p>
-    <a href="/" class="btn btn-default btn-lg mt-10">{copy.notFound.cta}</a>
+    <a href={to("/")} class="btn btn-default btn-lg mt-10">{copy.notFound.cta}</a>
   </section>
 </BaseLayout>

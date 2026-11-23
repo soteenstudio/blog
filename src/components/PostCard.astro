@@ -12,12 +12,13 @@ interface Props {
 
 const { post, featured = false, delay = 0 } = Astro.props;
 const copy = Astro.locals.copy;
+const to = Astro.locals.href;
 const locale = Astro.locals.locale;
 const text = localize(post, locale);
 ---
 
 <a
-  href={`/posts/${post.slug}`}
+  href={to(`/posts/${post.slug}`)}
   {...reveal(delay)}
   class:list={[
     "group relative flex flex-col justify-between overflow-hidden rounded-3xl border bg-background p-7 transition-all duration-300",

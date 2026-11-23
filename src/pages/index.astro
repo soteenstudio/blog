@@ -8,6 +8,7 @@ import { listCategories, listPublished } from "@/lib/posts";
 import { reveal } from "@/lib/reveal";
 
 const copy = Astro.locals.copy;
+const to = Astro.locals.href;
 
 const user = Astro.locals.user;
 const category = Astro.url.searchParams.get("kategori")?.trim() || null;
@@ -23,7 +24,7 @@ if (requestedPage > result.totalPages) {
   if (category) params.set("kategori", category);
   if (result.totalPages > 1) params.set("halaman", String(result.totalPages));
   const query = params.toString();
-  return Astro.redirect(`/${query ? `?${query}` : ""}`);
+  return Astro.redirect(to(`/${query ? `?${query}` : ""}`));
 }
 
 const { posts, page, totalPages } = result;
@@ -54,12 +55,12 @@ const chipActive = "border-transparent bg-primary text-primary-foreground";
       {
         categories.length > 0 && (
           <nav {...reveal(100)} aria-label={copy.list.filterLabel} class="mt-10 flex flex-wrap gap-2">
-            <a href="/" class:list={[chipBase, !category ? chipActive : chipIdle]} aria-current={!category ? "page" : undefined}>
+            <a href={to("/")} class:list={[chipBase, !category ? chipActive : chipIdle]} aria-current={!category ? "page" : undefined}>
               {copy.list.all}
             </a>
             {categories.map((c) => (
               <a
-                href={`/?kategori=${encodeURIComponent(c.name)}`}
+                href={to(`/?kategori=${encodeURIComponent(c.name)}`)}
                 class:list={[chipBase, category === c.name ? chipActive : chipIdle]}
                 aria-current={category === c.name ? "page" : undefined}
               >
@@ -76,7 +77,7 @@ const chipActive = "border-transparent bg-primary text-primary-foreground";
           <div class="mt-12 rounded-3xl border border-dashed p-10 text-center">
             <p class="text-muted-foreground">{category ? copy.list.empty : copy.list.emptyAll}</p>
             {user?.canPost && !category && (
-              <a href="/dashboard/posts/new" class="btn btn-brand mt-6">
+              <a href={to("/dashboard/posts/new")} class="btn btn-brand mt-6">
                 {copy.list.emptyCta}
               </a>
             )}

@@ -4,6 +4,8 @@ import Icon from "@/components/Icon.astro";
 import { formatDate } from "@/lib/format";
 import { listForDashboard } from "@/lib/posts";
 
+const to = Astro.locals.href;
+
 const copy = Astro.locals.copy;
 const locale = Astro.locals.locale;
 
@@ -25,12 +27,12 @@ const confirmMessage = JSON.stringify(copy.dashboard.deleteConfirm);
       <div class="flex flex-wrap gap-2">
         {
           isAdmin && (
-            <a href="/dashboard/users" class="btn btn-outline">
+            <a href={to("/dashboard/users")} class="btn btn-outline">
               {copy.dashboard.manageUsers}
             </a>
           )
         }
-        <a href="/dashboard/posts/new" class="btn btn-brand">
+        <a href={to("/dashboard/posts/new")} class="btn btn-brand">
           <Icon name="plus" />
           {copy.dashboard.newPost}
         </a>
@@ -81,10 +83,10 @@ const confirmMessage = JSON.stringify(copy.dashboard.deleteConfirm);
                   <td class="whitespace-nowrap px-5 py-4 text-muted-foreground">{formatDate(post.updatedAt, locale)}</td>
                   <td class="px-5 py-4">
                     <div class="flex items-center justify-end gap-2">
-                      <a href={`/posts/${post.slug}`} class="btn btn-ghost btn-sm">
+                      <a href={to(`/posts/${post.slug}`)} class="btn btn-ghost btn-sm">
                         {copy.dashboard.view}
                       </a>
-                      <a href={`/dashboard/posts/${post.id}`} class="btn btn-outline btn-sm">
+                      <a href={to(`/dashboard/posts/${post.id}`)} class="btn btn-outline btn-sm">
                         <Icon name="pencil" />
                         {copy.dashboard.edit}
                       </a>

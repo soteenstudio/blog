@@ -5,10 +5,11 @@ interface Props {
   class?: string;
 }
 const { class: className = "" } = Astro.props;
+const to = Astro.locals.href;
 ---
 
 <a
-  href="/"
+  href={to("/")}
   aria-label={`${siteConfig.name} ${siteConfig.blogLabel}`}
   class:list={["group inline-flex items-center gap-2.5 font-display text-lg font-semibold tracking-tight", className]}
 >

@@ -15,6 +15,7 @@ import { getPostBySlug, localize } from "@/lib/posts";
 import { reveal } from "@/lib/reveal";
 
 const copy = Astro.locals.copy;
+const to = Astro.locals.href;
 const locale = Astro.locals.locale;
 const user = Astro.locals.user;
 const post = await getPostBySlug(Astro.params.slug ?? "");
@@ -35,8 +36,9 @@ const [comments, liked] = await Promise.all([
 ]);
 
 const html = renderMarkdown(text.content);
-const loginHref = `/login?next=${encodeURIComponent(Astro.url.pathname)}`;
-const shareUrl = new URL(Astro.url.pathname, Astro.site).href;
+const barePath = Astro.locals.path.split("?")[0];
+const loginHref = to(`/login?next=${encodeURIComponent(barePath)}`);
+const shareUrl = new URL(to(barePath), Astro.site).href;
 const isDraft = post.status !== "published";
 ---
 
@@ -63,7 +65,7 @@ const isDraft = post.status !== "published";
     }
 
     <a
-      href="/"
+      href={to("/")}
       {...reveal(0)}
       class="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
     >
@@ -73,7 +75,7 @@ const isDraft = post.status !== "published";
 
     <div data-article-body>
       <header class="mt-8" lang={text.shownLang} {...reveal(80)}>
-        <a href={`/?kategori=${encodeURIComponent(post.category)}`} class="badge hover:bg-accent">
+        <a href={to(`/?kategori=${encodeURIComponent(post.category)}`)} class="badge hover:bg-accent">
           {post.category}
         </a>
         <h1 class="mt-5 font-display text-4xl font-semibold leading-[1.12] tracking-tight text-balance sm:text-5xl">
@@ -92,7 +94,7 @@ const isDraft = post.status !== "published";
         <div class="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3 border-y py-4 text-sm text-muted-foreground">
           {
             post.authorId ? (
-              <a href={`/u/${post.authorId}`} class="group inline-flex items-center gap-3">
+              <a href={to(`/u/${post.authorId}`)} class="group inline-flex items-center gap-3">
                 <Avatar id={post.authorId} name={post.authorName} version={post.authorAvatarVersion} class="size-10 text-sm" tone="primary" />
                 <span class="leading-tight">
                   <span class="block font-medium text-foreground group-hover:underline">{post.authorName}</span>

@@ -2,6 +2,7 @@
 import Icon from "./Icon.astro";
 
 const copy = Astro.locals.copy;
+const to = Astro.locals.href;
 
 interface Props {
   page: number;
@@ -15,7 +16,7 @@ function href(p: number) {
   if (category) params.set("kategori", category);
   if (p > 1) params.set("halaman", String(p));
   const query = params.toString();
-  return `/${query ? `?${query}` : ""}`;
+  return to(`/${query ? `?${query}` : ""}`);
 }
 ---
 

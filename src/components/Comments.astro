@@ -7,6 +7,7 @@ import type { Comment } from "@/lib/comments";
 import { formatDateTime } from "@/lib/format";
 
 const copy = Astro.locals.copy;
+const to = Astro.locals.href;
 const locale = Astro.locals.locale;
 
 interface Props {
@@ -69,7 +70,7 @@ const canDelete = (c: Comment) => !!user && (user.role === "admin" || user.id ==
           <a href={loginHref} class="btn btn-default btn-sm">
             {copy.nav.login}
           </a>
-          <a href="/register" class="btn btn-outline btn-sm">
+          <a href={to("/register")} class="btn btn-outline btn-sm">
             {copy.nav.register}
           </a>
         </div>
@@ -83,13 +84,13 @@ const canDelete = (c: Comment) => !!user && (user.role === "admin" || user.id ==
     {
       comments.map((c) => (
         <li data-comment-id={c.id} class="flex gap-3 py-5 first:pt-0">
-          <a href={`/u/${c.userId}`} class="shrink-0" tabindex="-1" aria-hidden="true">
+          <a href={to(`/u/${c.userId}`)} class="shrink-0" tabindex="-1" aria-hidden="true">
             <Avatar id={c.userId} name={c.authorName} version={c.authorAvatarVersion} class="size-9 text-sm" />
           </a>
           <div class="min-w-0 flex-1">
             <div class="flex items-center justify-between gap-3">
               <p class="text-sm">
-                <a href={`/u/${c.userId}`} class="font-medium hover:underline">{c.authorName}</a>
+                <a href={to(`/u/${c.userId}`)} class="font-medium hover:underline">{c.authorName}</a>
                 <time datetime={c.createdAt} class="ml-2 text-xs text-muted-foreground">
                   {formatDateTime(c.createdAt, locale)}
                 </time>
