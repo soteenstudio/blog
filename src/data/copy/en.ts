@@ -213,7 +213,7 @@ export const en: Copy = {
   },
   footer: {
     rights: "All rights reserved.",
-    legalNotice: "Terms of use and licenses for each project follow the rules of its own release.",
+    legalNotice: "The documents on this site apply to SoTeen Studio services. Usage terms and licenses for each project follow the rules of each release.",
     legal: { privacy: "Privacy Policy", terms: "Terms & Conditions", cookies: "Cookie Policy" },
   },
   forbidden: {

@@ -215,7 +215,7 @@ export const id = {
   },
   footer: {
     rights: "Hak cipta dilindungi.",
-    legalNotice: "Ketentuan penggunaan dan lisensi setiap proyek mengikuti aturan masing-masing rilis.",
+    legalNotice: "Dokumen di situs ini berlaku untuk layanan SoTeen Studio. Ketentuan penggunaan dan lisensi untuk tiap proyek mengikuti aturan masing-masing rilis.",
     legal: { privacy: "Kebijakan Privasi", terms: "Syarat & Ketentuan", cookies: "Kebijakan Cookie" },
   },
   forbidden: {
